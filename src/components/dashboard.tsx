@@ -28,7 +28,7 @@ import { AddTransactionDialog } from "./add-transaction-dialog";
 import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
-import { addMonths, isSameMonth, isSameYear, startOfDay, endOfDay } from 'date-fns';
+import { addMonths, isSameMonth, isSameYear } from 'date-fns';
 
 import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType, MemberExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -43,9 +43,8 @@ function getCurrentMonthInstallmentValue(expense: MemberExpense | ThirdPartyExpe
     for (let i = 0; i < installments; i++) {
         const installmentDate = addMonths(expenseDate, i);
         if (isSameMonth(installmentDate, today) && isSameYear(installmentDate, today)) {
-            currentMonthAmount += installmentAmount;
-            // Since we only want one installment per month for a single expense, we can break.
-            // An expense shouldn't have multiple installments in the same month.
+            currentMonthAmount = installmentAmount;
+            // Found the installment for this month for this expense, no need to check further for this expense.
             break; 
         }
     }
