@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  FileText,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -185,6 +186,14 @@ export function IncomesDashboard() {
                 <SidebarMenuButton>
                   <CreditCard />
                   <span>Cartões de Crédito</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/reports" passHref>
+                <SidebarMenuButton>
+                  <FileText />
+                  <span>Relatórios</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>

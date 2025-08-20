@@ -14,6 +14,7 @@ import {
   Banknote,
   Landmark,
   Wallet,
+  FileText,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -181,7 +182,15 @@ export function ThirdPartyExpensesDashboard() {
     setAddEditDialogOpen(true);
   }
   
-  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => {
+      if (expense.installments && expense.installments > 1) {
+        if (expense.paidInstallments && expense.paidInstallments.length >= expense.installments) {
+          return sum; // All installments paid
+        }
+        return sum + (expense.amount / expense.installments); // Return value of one installment
+      }
+      return sum + expense.amount; // Not an installment purchase
+  }, 0);
 
   return (
     <SidebarProvider>
@@ -241,6 +250,14 @@ export function ThirdPartyExpensesDashboard() {
                 <SidebarMenuButton>
                   <CreditCardIcon />
                   <span>Cartões de Crédito</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/reports" passHref>
+                <SidebarMenuButton>
+                  <FileText />
+                  <span>Relatórios</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>

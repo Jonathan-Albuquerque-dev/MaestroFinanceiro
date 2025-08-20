@@ -12,6 +12,7 @@ import {
   Pencil,
   Trash2,
   CheckCircle,
+  FileText,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -250,6 +251,14 @@ export function CreditCardsDashboard() {
                 <SidebarMenuButton isActive>
                   <CreditCard />
                   <span>Cartões de Crédito</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/reports" passHref>
+                <SidebarMenuButton>
+                  <FileText />
+                  <span>Relatórios</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>

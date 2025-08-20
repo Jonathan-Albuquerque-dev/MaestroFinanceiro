@@ -14,6 +14,7 @@ import {
   Banknote,
   Landmark,
   Wallet,
+  FileText,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -193,7 +194,15 @@ export function MemberExpensesDashboard() {
     setAddEditDialogOpen(true);
   };
 
-  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => {
+     if (expense.installments && expense.installments > 1) {
+        if (expense.paidInstallments && expense.paidInstallments.length >= expense.installments) {
+          return sum; // All installments paid
+        }
+        return sum + (expense.amount / expense.installments); // Return value of one installment
+      }
+      return sum + expense.amount; // Not an installment purchase
+  }, 0);
 
   const getMemberName = (memberId: string) => {
     return familyMembers.find((m) => m.id === memberId)?.name || "Desconhecido";
@@ -257,6 +266,14 @@ export function MemberExpensesDashboard() {
                 <SidebarMenuButton>
                   <CreditCardIcon />
                   <span>Cartões de Crédito</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/reports" passHref>
+                <SidebarMenuButton>
+                  <FileText />
+                  <span>Relatórios</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>

@@ -8,6 +8,7 @@ import {
   Wallet,
   Repeat,
   CreditCard,
+  FileText,
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import {
@@ -239,6 +240,14 @@ export function Dashboard() {
                 <SidebarMenuButton>
                   <CreditCard />
                   <span>Cartões de Crédito</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/reports" passHref>
+                <SidebarMenuButton>
+                  <FileText />
+                  <span>Relatórios</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
