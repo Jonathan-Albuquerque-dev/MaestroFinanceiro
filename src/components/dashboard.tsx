@@ -42,6 +42,16 @@ function getCurrentMonthExpenseValue(expense: MemberExpense | ThirdPartyExpense,
     return 0;
 }
 
+function getMemberExpenseValue(expense: MemberExpense): number {
+  if (expense.installments && expense.installments > 1) {
+    if (expense.paidInstallments && expense.paidInstallments.length >= expense.installments) {
+      return 0; // All installments paid
+    }
+    return expense.amount / expense.installments; // Return value of one installment
+  }
+  return expense.amount; // Not an installment purchase
+}
+
 
 export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -166,7 +176,7 @@ export function Dashboard() {
 
   const today = new Date();
   const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + getCurrentMonthExpenseValue(expense, today), 0);
-  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getCurrentMonthExpenseValue(expense, today), 0);
+  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getMemberExpenseValue(expense), 0);
 
   const balance = totalIncome - totalExpense;
 
