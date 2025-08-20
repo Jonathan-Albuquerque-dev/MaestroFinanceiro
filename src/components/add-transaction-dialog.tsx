@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarIcon, Sparkles } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -39,9 +38,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { runCategorizeExpense } from "@/lib/actions";
 import { categories } from "@/lib/mock-data";
 import type { Transaction } from "@/lib/types";
 
@@ -64,8 +61,6 @@ export function AddTransactionDialog({
   onOpenChange,
   onAddTransaction,
 }: AddTransactionDialogProps) {
-  const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -82,35 +77,6 @@ export function AddTransactionDialog({
     onOpenChange(false);
     form.reset();
   }
-
-  const handleAiCategorization = () => {
-    const description = form.getValues("description");
-    if (!description) {
-      toast({
-        variant: "destructive",
-        title: "Ops!",
-        description: "Por favor, insira uma descrição para categorizar.",
-      });
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await runCategorizeExpense(description);
-      if ("category" in result && result.category) {
-        form.setValue("category", result.category, { shouldValidate: true });
-        toast({
-          title: "Sucesso!",
-          description: `Despesa categorizada como "${result.category}".`,
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: result.error || "Não foi possível categorizar a despesa.",
-        });
-      }
-    });
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -191,16 +157,6 @@ export function AddTransactionDialog({
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={handleAiCategorization}
-                      disabled={isPending || form.getValues("type") === "income"}
-                      aria-label="Categorizar com IA"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                    </Button>
                   </div>
                   <FormMessage />
                 </FormItem>

@@ -20,13 +20,13 @@ import { SummaryCards } from "./summary-cards";
 import { ExpensesChart } from "./expenses-chart";
 import { FlowChart } from "./flow-chart";
 import { RecentTransactions } from "./recent-transactions";
-import { SavingsTips } from "./savings-tips";
 import { AddTransactionDialog } from "./add-transaction-dialog";
 import { Button } from "./ui/button";
 
 import { mockTransactions } from "@/lib/mock-data";
 import type { Transaction } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
@@ -100,12 +100,9 @@ export function Dashboard() {
                         <ExpensesChart transactions={transactions} />
                     </div>
                 </div>
-                <div className="grid gap-8 mt-8 md:grid-cols-2 lg:grid-cols-7">
+                <div className="grid gap-8 mt-8">
                     <div className="lg:col-span-4">
                         <RecentTransactions transactions={transactions} />
-                    </div>
-                    <div className="lg:col-span-3">
-                        <SavingsTips transactions={transactions} />
                     </div>
                 </div>
             </main>
