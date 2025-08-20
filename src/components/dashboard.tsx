@@ -28,13 +28,13 @@ import { AddTransactionDialog } from "./add-transaction-dialog";
 import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
-import { addMonths, isSameMonth, isSameYear } from 'date-fns';
+import { addMonths, isSameMonth, isSameYear, startOfDay, endOfDay } from 'date-fns';
 
 import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType, MemberExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
-function getCurrentMonthInstallment(expense: MemberExpense | ThirdPartyExpense, today: Date): number {
+function getCurrentMonthInstallmentValue(expense: MemberExpense | ThirdPartyExpense, today: Date): number {
     const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
     const installments = expense.installments || 1;
     const installmentAmount = expense.amount / installments;
@@ -44,6 +44,9 @@ function getCurrentMonthInstallment(expense: MemberExpense | ThirdPartyExpense, 
         const installmentDate = addMonths(expenseDate, i);
         if (isSameMonth(installmentDate, today) && isSameYear(installmentDate, today)) {
             currentMonthAmount += installmentAmount;
+            // Since we only want one installment per month for a single expense, we can break.
+            // An expense shouldn't have multiple installments in the same month.
+            break; 
         }
     }
     return currentMonthAmount;
@@ -172,8 +175,8 @@ export function Dashboard() {
   const totalExpense = totalVariableExpense + totalFixedExpense;
 
   const today = new Date();
-  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallment(expense, today), 0);
-  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallment(expense, today), 0);
+  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallmentValue(expense, today), 0);
+  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallmentValue(expense, today), 0);
 
   const balance = totalIncome - totalExpense;
 
