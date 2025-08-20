@@ -1,4 +1,4 @@
-import type { Transaction } from './types';
+import type { Transaction, FamilyMemberIncome } from './types';
 
 export const mockTransactions: Transaction[] = [
   {
@@ -65,6 +65,11 @@ export const mockTransactions: Transaction[] = [
     category: 'Saúde',
     date: new Date(new Date().setDate(22)).toISOString(),
   },
+];
+
+export const mockFamilyIncomes: FamilyMemberIncome[] = [
+    { id: '1', name: 'João', income: 3500 },
+    { id: '2', name: 'Maria', income: 4200 },
 ];
 
 export const categories = [

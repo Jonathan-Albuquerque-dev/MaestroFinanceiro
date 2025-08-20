@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   DollarSign,
   LayoutDashboard,
+  Users,
   Wallet,
 } from "lucide-react";
 import {
@@ -22,11 +23,11 @@ import { FlowChart } from "./flow-chart";
 import { RecentTransactions } from "./recent-transactions";
 import { AddTransactionDialog } from "./add-transaction-dialog";
 import { Button } from "./ui/button";
+import NextLink from "next/link";
 
 import { mockTransactions } from "@/lib/mock-data";
 import type { Transaction } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 
 export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
@@ -64,10 +65,20 @@ export function Dashboard() {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton isActive>
-                <LayoutDashboard />
-                <span>Dashboard</span>
-              </SidebarMenuButton>
+              <NextLink href="/" passHref>
+                <SidebarMenuButton isActive>
+                  <LayoutDashboard />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/incomes" passHref>
+                <SidebarMenuButton>
+                  <Users />
+                  <span>Rendas</span>
+                </SidebarMenuButton>
+              </NextLink>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
@@ -84,7 +95,7 @@ export function Dashboard() {
                     <Wallet className="mr-2 h-4 w-4"/> Adicionar Transação
                   </Button>
                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40" />
+                    <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
                     <AvatarFallback>U</AvatarFallback>
                   </Avatar>
                 </div>

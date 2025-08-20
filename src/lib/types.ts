@@ -7,6 +7,12 @@ export type Transaction = {
   date: string;
 };
 
+export type FamilyMemberIncome = {
+  id: string;
+  name: string;
+  income: number;
+};
+
 export type Category = 'Alimentação' | 'Transporte' | 'Moradia' | 'Saúde' | 'Educação' | 'Lazer' | 'Salário' | 'Renda Extra' | 'Outros';
 
 export type ChartData = {
