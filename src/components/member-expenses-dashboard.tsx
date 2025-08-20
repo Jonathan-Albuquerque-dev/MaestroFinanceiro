@@ -85,7 +85,7 @@ function getCurrentInstallmentText(
   totalInstallments: number,
   closingDayInput: number | string
 ) {
-  const closingDay = Number(closingDayInput) + 1;
+  const closingDay = Number(closingDayInput);
 
   const pY = purchaseDate.getUTCFullYear();
   const pM = purchaseDate.getUTCMonth();
@@ -97,8 +97,8 @@ function getCurrentInstallmentText(
 
   const monthIndex = (y: number, m: number) => y * 12 + m;
 
-  // Compra no DIA do fechamento ou depois => 1º ciclo é o mês seguinte
-  const firstCycleShift = pD >= closingDay ? 1 : 0;
+  // Compra APÓS o fechamento => 1º ciclo é o mês seguinte
+  const firstCycleShift = pD > closingDay ? 1 : 0;
   const firstCycleIndex  = monthIndex(pY, pM + firstCycleShift);
 
   // Antes do fechamento do mês atual => ainda estamos no ciclo anterior
