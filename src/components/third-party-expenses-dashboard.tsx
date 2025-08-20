@@ -10,10 +10,11 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  CreditCard,
+  CreditCard as CreditCardIcon,
   Banknote,
   Landmark,
   Wallet,
+  Eye,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -50,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddEditThirdPartyExpenseDialog } from "./add-edit-third-party-expense-dialog";
+import { ViewInstallmentsDialog } from "./view-installments-dialog";
 import type { ThirdPartyExpense, CreditCard as CreditCardType } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -62,7 +64,7 @@ const paymentMethodIcons = {
   dinheiro: <Wallet className="h-4 w-4" />,
   pix: <Landmark className="h-4 w-4" />,
   debito: <Banknote className="h-4 w-4" />,
-  credito: <CreditCard className="h-4 w-4" />,
+  credito: <CreditCardIcon className="h-4 w-4" />,
 }
 
 const paymentMethodLabels = {
@@ -82,7 +84,8 @@ function formatDate(date: string | Timestamp) {
 export function ThirdPartyExpensesDashboard() {
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
-  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
+  const [isViewInstallmentsOpen, setViewInstallmentsOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<ThirdPartyExpense | undefined>(undefined);
   const { toast } = useToast();
 
@@ -122,7 +125,7 @@ export function ThirdPartyExpensesDashboard() {
           description: "Despesa de terceiro atualizada com sucesso.",
         });
       } else {
-        await addDoc(collection(db, "thirdPartyExpenses"), expense);
+        await addDoc(collection(db, "thirdPartyExpenses"), {...expense, paidInstallments: []});
         toast({
           title: "Sucesso!",
           description: "Despesa de terceiro adicionada com sucesso.",
@@ -137,6 +140,20 @@ export function ThirdPartyExpensesDashboard() {
       });
     }
   };
+
+  const handleUpdateInstallments = async (expenseId: string, paidInstallments: number[]) => {
+      try {
+        const docRef = doc(db, "thirdPartyExpenses", expenseId);
+        await updateDoc(docRef, { paidInstallments });
+      } catch (error) {
+         console.error("Erro ao atualizar parcelas: ", error);
+         toast({
+            variant: "destructive",
+            title: "Erro!",
+            description: "Não foi possível atualizar o status da parcela.",
+        });
+      }
+  }
 
   const handleDelete = async (expenseId: string) => {
     try {
@@ -157,12 +174,17 @@ export function ThirdPartyExpensesDashboard() {
 
   const openAddDialog = () => {
     setSelectedExpense(undefined);
-    setDialogOpen(true);
+    setAddEditDialogOpen(true);
   }
 
   const openEditDialog = (expense: ThirdPartyExpense) => {
     setSelectedExpense(expense);
-    setDialogOpen(true);
+    setAddEditDialogOpen(true);
+  }
+  
+  const openViewInstallmentsDialog = (expense: ThirdPartyExpense) => {
+      setSelectedExpense(expense);
+      setViewInstallmentsOpen(true);
   }
   
   const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -215,7 +237,7 @@ export function ThirdPartyExpensesDashboard() {
             <SidebarMenuItem>
               <NextLink href="/credit-cards" passHref>
                 <SidebarMenuButton>
-                  <CreditCard />
+                  <CreditCardIcon />
                   <span>Cartões de Crédito</span>
                 </SidebarMenuButton>
               </NextLink>
@@ -269,6 +291,7 @@ export function ThirdPartyExpensesDashboard() {
                             <TableHead>Descrição</TableHead>
                              <TableHead>Data</TableHead>
                             <TableHead>Pagamento</TableHead>
+                            <TableHead>Parcelas</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
@@ -287,6 +310,16 @@ export function ThirdPartyExpensesDashboard() {
                                       {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
                                     </Badge>
                                   )}
+                                </TableCell>
+                                <TableCell>
+                                    {expense.installments && expense.installments > 1 ? (
+                                        <div className="flex items-center gap-2">
+                                            <span>{`${expense.paidInstallments?.length || 0}/${expense.installments}`}</span>
+                                            <Button variant="outline" size="sm" onClick={() => openViewInstallmentsDialog(expense)}>
+                                                <Eye className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ) : 'N/A'}
                                 </TableCell>
                                 <TableCell className="text-right font-medium text-accent">
                                     {expense.amount.toLocaleString("pt-BR", {
@@ -324,12 +357,20 @@ export function ThirdPartyExpensesDashboard() {
         </div>
       </SidebarInset>
       <AddEditThirdPartyExpenseDialog
-        open={isDialogOpen}
-        onOpenChange={setDialogOpen}
+        open={isAddEditDialogOpen}
+        onOpenChange={setAddEditDialogOpen}
         onSave={handleAddOrUpdate}
         expense={selectedExpense}
         creditCards={creditCards}
       />
+       {selectedExpense && (
+        <ViewInstallmentsDialog
+            open={isViewInstallmentsOpen}
+            onOpenChange={setViewInstallmentsOpen}
+            expense={selectedExpense}
+            onUpdateInstallments={handleUpdateInstallments}
+        />
+       )}
     </SidebarProvider>
   );
 }
