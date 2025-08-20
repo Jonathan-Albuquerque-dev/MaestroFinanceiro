@@ -40,7 +40,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "./ui/label";
 import { cn } from "@/lib/utils";
-import { format, addMonths, setDate } from "date-fns";
+import { format, addMonths, setDate, lastDayOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { db } from "@/lib/firebase";
@@ -220,13 +220,15 @@ export function ReportsDashboard() {
             : purchaseDate;
 
           for (let i = 1; i <= expense.installments!; i++) {
-             const dueDate = setDate(firstInvoiceDate, card.dueDate);
+             const monthForDueDate = addMonths(firstInvoiceDate, i-1);
+             const lastDay = lastDayOfMonth(monthForDueDate);
+             const dueDate = setDate(monthForDueDate, Math.min(card.dueDate, lastDay.getDate()));
+
              const description = `${expense.description} (${i}/${expense.installments})`;
              const type = 'Despesa';
              const category = 'category' in expense ? expense.category : 'N/A';
              const date = format(dueDate, 'dd/MM/yyyy');
              tableBody.push([date, description, type, category, installmentAmount]);
-             firstInvoiceDate = addMonths(firstInvoiceDate, 1);
           }
         }
       } else {
@@ -473,3 +475,5 @@ export function ReportsDashboard() {
     </SidebarProvider>
   );
 }
+
+    
