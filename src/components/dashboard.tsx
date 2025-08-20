@@ -28,13 +28,14 @@ import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
 
-import type { Transaction, FixedExpense } from "@/lib/types";
+import type { Transaction, FixedExpense, FamilyMemberIncome } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
 export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+  const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -64,6 +65,19 @@ export function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, "familyIncomes"), orderBy("name"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const incomesData: FamilyMemberIncome[] = [];
+      querySnapshot.forEach((doc) => {
+        incomesData.push({ id: doc.id, ...doc.data() } as FamilyMemberIncome);
+      });
+      setFamilyIncomes(incomesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleAddTransaction = async (transaction: Omit<Transaction, "id">) => {
     try {
       await addDoc(collection(db, "transactions"), transaction);
@@ -81,9 +95,13 @@ export function Dashboard() {
     }
   };
 
-  const totalIncome = transactions
+  const transactionIncome = transactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
+
+  const familyIncome = familyIncomes.reduce((sum, i) => sum + i.income, 0);
+  
+  const totalIncome = transactionIncome + familyIncome;
   
   const totalVariableExpense = transactions
     .filter((t) => t.type === "expense")
