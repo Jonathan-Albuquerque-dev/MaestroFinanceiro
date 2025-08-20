@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DollarSign,
   LayoutDashboard,
@@ -36,19 +36,45 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddIncomeDialog } from "./add-income-dialog";
-import { mockFamilyIncomes } from "@/lib/mock-data";
 import type { FamilyMemberIncome } from "@/lib/types";
+import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+
 
 export function IncomesDashboard() {
-  const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>(mockFamilyIncomes);
+  const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>([]);
   const [isAddIncomeDialogOpen, setAddIncomeDialogOpen] = useState(false);
+  const { toast } = useToast();
 
-  const handleAddIncome = (income: Omit<FamilyMemberIncome, "id">) => {
-    const newIncome = {
-      ...income,
-      id: (familyIncomes.length + 1).toString(),
-    };
-    setFamilyIncomes((prev) => [...prev, newIncome]);
+  useEffect(() => {
+    const q = query(collection(db, "familyIncomes"), orderBy("name"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const incomesData: FamilyMemberIncome[] = [];
+      querySnapshot.forEach((doc) => {
+        incomesData.push({ id: doc.id, ...doc.data() } as FamilyMemberIncome);
+      });
+      setFamilyIncomes(incomesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleAddIncome = async (income: Omit<FamilyMemberIncome, "id">) => {
+    try {
+      await addDoc(collection(db, "familyIncomes"), income);
+      toast({
+        title: "Sucesso!",
+        description: "Renda adicionada com sucesso.",
+      });
+    } catch (error) {
+       console.error("Erro ao adicionar renda: ", error);
+       toast({
+        variant: "destructive",
+        title: "Erro!",
+        description: "Não foi possível adicionar a renda.",
+      });
+    }
   };
   
   const totalFamilyIncome = familyIncomes.reduce((sum, person) => sum + person.income, 0);

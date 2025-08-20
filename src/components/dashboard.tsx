@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DollarSign,
   LayoutDashboard,
   Users,
   Wallet,
 } from "lucide-react";
+import { collection, addDoc, getDocs, onSnapshot, query, orderBy } from "firebase/firestore";
 import {
   SidebarProvider,
   Sidebar,
@@ -24,21 +25,45 @@ import { RecentTransactions } from "./recent-transactions";
 import { AddTransactionDialog } from "./add-transaction-dialog";
 import { Button } from "./ui/button";
 import NextLink from "next/link";
+import { db } from "@/lib/firebase";
 
-import { mockTransactions } from "@/lib/mock-data";
 import type { Transaction } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 
 export function Dashboard() {
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const { toast } = useToast();
 
-  const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
-    const newTransaction = {
-      ...transaction,
-      id: (transactions.length + 1).toString(),
-    };
-    setTransactions((prev) => [newTransaction, ...prev]);
+  useEffect(() => {
+    const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const transactionsData: Transaction[] = [];
+      querySnapshot.forEach((doc) => {
+        transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
+      });
+      setTransactions(transactionsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleAddTransaction = async (transaction: Omit<Transaction, "id">) => {
+    try {
+      await addDoc(collection(db, "transactions"), transaction);
+      toast({
+        title: "Sucesso!",
+        description: "Transação adicionada com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar transação: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro!",
+        description: "Não foi possível adicionar a transação.",
+      });
+    }
   };
 
   const totalIncome = transactions

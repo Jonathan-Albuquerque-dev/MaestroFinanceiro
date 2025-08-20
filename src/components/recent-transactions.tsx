@@ -20,6 +20,14 @@ import type { Transaction } from "@/lib/types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
+
+function formatDate(date: string | Timestamp) {
+    if (typeof date === 'string') {
+        return format(new Date(date), "dd 'de' MMM, yyyy", { locale: ptBR })
+    }
+    return format(date.toDate(), "dd 'de' MMM, yyyy", { locale: ptBR });
+}
 
 export function RecentTransactions({
   transactions,
@@ -67,7 +75,7 @@ export function RecentTransactions({
                     })}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  {format(new Date(transaction.date), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                  {formatDate(transaction.date)}
                 </TableCell>
               </TableRow>
             ))}

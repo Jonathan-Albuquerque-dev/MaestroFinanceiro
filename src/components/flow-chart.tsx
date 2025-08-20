@@ -1,8 +1,9 @@
 "use client"
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { format, startOfMonth, eachMonthOfInterval } from 'date-fns';
+import { format, startOfMonth, eachMonthOfInterval, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Timestamp } from 'firebase/firestore';
 
 import {
   Card,
@@ -31,21 +32,34 @@ const chartConfig = {
   },
 }
 
+function getDateFromTransaction(date: string | Timestamp): Date {
+    if (date instanceof Timestamp) {
+        return date.toDate();
+    }
+    return new Date(date);
+}
+
 export function FlowChart({ transactions }: { transactions: Transaction[] }) {
-    const monthlyData = eachMonthOfInterval({
-        start: startOfMonth(new Date(Math.min(...transactions.map(t => new Date(t.date).getTime())))),
+    const monthlyData = transactions.length > 0 ? eachMonthOfInterval({
+        start: startOfMonth(new Date(Math.min(...transactions.map(t => getDateFromTransaction(t.date).getTime())))),
         end: new Date()
       }).map(month => {
         const monthStr = format(month, 'MMM', { locale: ptBR });
         const income = transactions
-          .filter(t => t.type === 'income' && format(new Date(t.date), 'MMM', { locale: ptBR }) === monthStr)
+          .filter(t => {
+              const transactionDate = getDateFromTransaction(t.date);
+              return t.type === 'income' && getMonth(transactionDate) === getMonth(month) && getYear(transactionDate) === getYear(month);
+          })
           .reduce((sum, t) => sum + t.amount, 0);
         const expense = transactions
-          .filter(t => t.type === 'expense' && format(new Date(t.date), 'MMM', { locale: ptBR }) === monthStr)
+           .filter(t => {
+              const transactionDate = getDateFromTransaction(t.date);
+              return t.type === 'expense' && getMonth(transactionDate) === getMonth(month) && getYear(transactionDate) === getYear(month);
+          })
           .reduce((sum, t) => sum + t.amount, 0);
         
         return { month: monthStr.charAt(0).toUpperCase() + monthStr.slice(1), income, expense };
-      });
+      }) : [];
 
 
   return (
