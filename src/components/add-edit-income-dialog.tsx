@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,17 +30,19 @@ const formSchema = z.object({
   income: z.coerce.number().positive("A renda deve ser um valor positivo."),
 });
 
-type AddIncomeDialogProps = {
+type AddEditIncomeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddIncome: (income: Omit<FamilyMemberIncome, "id">) => void;
+  onSave: (income: Omit<FamilyMemberIncome, "id"> | FamilyMemberIncome) => void;
+  income?: FamilyMemberIncome;
 };
 
-export function AddIncomeDialog({
+export function AddEditIncomeDialog({
   open,
   onOpenChange,
-  onAddIncome,
-}: AddIncomeDialogProps) {
+  onSave,
+  income,
+}: AddEditIncomeDialogProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -48,8 +51,23 @@ export function AddIncomeDialog({
     },
   });
 
+  useEffect(() => {
+    if (open && income) {
+      form.reset(income);
+    } else if (open && !income) {
+      form.reset({
+        name: "",
+        income: 0,
+      });
+    }
+  }, [open, income, form]);
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    onAddIncome(values);
+    if (income) {
+      onSave({ ...income, ...values });
+    } else {
+      onSave(values);
+    }
     onOpenChange(false);
     form.reset();
   }
@@ -58,7 +76,7 @@ export function AddIncomeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Renda Familiar</DialogTitle>
+          <DialogTitle>{income ? "Editar Renda" : "Adicionar Renda"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -94,7 +112,7 @@ export function AddIncomeDialog({
                   Cancelar
                 </Button>
               </DialogClose>
-              <Button type="submit" className="bg-primary hover:bg-primary/90">Adicionar</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">Salvar</Button>
             </DialogFooter>
           </form>
         </Form>

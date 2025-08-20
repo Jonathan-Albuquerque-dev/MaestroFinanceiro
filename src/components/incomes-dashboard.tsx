@@ -8,6 +8,9 @@ import {
   PlusCircle,
   Repeat,
   CreditCard,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -37,16 +40,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AddIncomeDialog } from "./add-income-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { AddEditIncomeDialog } from "./add-edit-income-dialog";
 import type { FamilyMemberIncome } from "@/lib/types";
-import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 
 export function IncomesDashboard() {
   const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>([]);
-  const [isAddIncomeDialogOpen, setAddIncomeDialogOpen] = useState(false);
+  const [isDialogOpen, setDialogOpen] = useState(false);
+  const [selectedIncome, setSelectedIncome] = useState<FamilyMemberIncome | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -62,22 +72,58 @@ export function IncomesDashboard() {
     return () => unsubscribe();
   }, []);
 
-  const handleAddIncome = async (income: Omit<FamilyMemberIncome, "id">) => {
+  const handleAddOrUpdate = async (income: Omit<FamilyMemberIncome, "id"> | FamilyMemberIncome) => {
     try {
-      await addDoc(collection(db, "familyIncomes"), income);
-      toast({
-        title: "Sucesso!",
-        description: "Renda adicionada com sucesso.",
-      });
+      if ("id" in income) {
+        const docRef = doc(db, "familyIncomes", income.id);
+        await updateDoc(docRef, { ...income });
+        toast({
+          title: "Sucesso!",
+          description: "Renda atualizada com sucesso.",
+        });
+      } else {
+        await addDoc(collection(db, "familyIncomes"), income);
+        toast({
+          title: "Sucesso!",
+          description: "Renda adicionada com sucesso.",
+        });
+      }
     } catch (error) {
-       console.error("Erro ao adicionar renda: ", error);
+       console.error("Erro ao salvar renda: ", error);
        toast({
         variant: "destructive",
         title: "Erro!",
-        description: "Não foi possível adicionar a renda.",
+        description: "Não foi possível salvar a renda.",
       });
     }
   };
+
+  const handleDelete = async (incomeId: string) => {
+    try {
+      await deleteDoc(doc(db, "familyIncomes", incomeId));
+      toast({
+        title: "Sucesso!",
+        description: "Renda excluída com sucesso.",
+      });
+    } catch (error) {
+      console.error("Erro ao excluir renda: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro!",
+        description: "Não foi possível excluir a renda.",
+      });
+    }
+  }
+
+  const openAddDialog = () => {
+    setSelectedIncome(undefined);
+    setDialogOpen(true);
+  }
+
+  const openEditDialog = (income: FamilyMemberIncome) => {
+    setSelectedIncome(income);
+    setDialogOpen(true);
+  }
   
   const totalFamilyIncome = familyIncomes.reduce((sum, person) => sum + person.income, 0);
 
@@ -145,7 +191,7 @@ export function IncomesDashboard() {
                     <p className="text-muted-foreground">Gerencie a renda de cada membro da família.</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <Button onClick={() => setAddIncomeDialogOpen(true)}>
+                  <Button onClick={openAddDialog}>
                     <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Renda
                   </Button>
                    <Avatar>
@@ -181,6 +227,7 @@ export function IncomesDashboard() {
                             <TableRow>
                             <TableHead>Nome</TableHead>
                             <TableHead className="text-right">Renda Mensal</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -193,6 +240,26 @@ export function IncomesDashboard() {
                                         currency: "BRL",
                                     })}
                                 </TableCell>
+                                <TableCell>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Abrir menu</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => openEditDialog(person)}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDelete(person.id)} className="text-destructive">
+                                         <Trash2 className="mr-2 h-4 w-4" />
+                                        Excluir
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </TableCell>
                             </TableRow>
                             ))}
                         </TableBody>
@@ -202,10 +269,11 @@ export function IncomesDashboard() {
             </main>
         </div>
       </SidebarInset>
-      <AddIncomeDialog
-        open={isAddIncomeDialogOpen}
-        onOpenChange={setAddIncomeDialogOpen}
-        onAddIncome={handleAddIncome}
+      <AddEditIncomeDialog
+        open={isDialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleAddOrUpdate}
+        income={selectedIncome}
       />
     </SidebarProvider>
   );
