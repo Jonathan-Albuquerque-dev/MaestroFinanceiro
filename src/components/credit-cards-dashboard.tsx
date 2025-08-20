@@ -44,60 +44,59 @@ import type { CreditCard as CreditCardType, Transaction, ThirdPartyExpense } fro
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { getMonth, getYear, set, isAfter, isBefore, subMonths, addMonths, differenceInMonths, startOfMonth } from "date-fns";
+import { getMonth, getYear, set, isAfter, isBefore, subMonths, addMonths, startOfMonth, isEqual, endOfMonth } from "date-fns";
 
 function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], thirdPartyExpenses: ThirdPartyExpense[]): number {
     const now = new Date();
-    let closingDateOfThisMonth = set(now, { year: getYear(now), month: getMonth(now), date: card.closingDate, hours: 23, minutes: 59, seconds: 59 });
     
-    if (isAfter(now, closingDateOfThisMonth)) {
-        closingDateOfThisMonth = addMonths(closingDateOfThisMonth, 1);
+    // Define a data de fechamento para o mês atual.
+    let closingDateForCurrentInvoice = set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
+
+    // Se a data atual for DEPOIS da data de fechamento, a fatura em aberto é a do próximo mês.
+    if (isAfter(now, closingDateForCurrentInvoice)) {
+        closingDateForCurrentInvoice = addMonths(closingDateForCurrentInvoice, 1);
     }
     
-    const closingDateOfLastMonth = subMonths(closingDateOfThisMonth, 1);
+    // A data de fechamento do mês anterior marca o início do período da fatura atual.
+    const closingDateForLastInvoice = subMonths(closingDateForCurrentInvoice, 1);
 
     const allExpenses = [
         ...transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credito' && t.creditCardId === card.id),
         ...thirdPartyExpenses.filter(t => t.paymentMethod === 'credito' && t.creditCardId === card.id)
     ];
 
-    const invoiceTotal = allExpenses.reduce((total, expense) => {
+    let invoiceTotal = 0;
+
+    allExpenses.forEach(expense => {
         const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
         const installments = expense.installments || 1;
         const installmentAmount = expense.amount / installments;
         
-        // One-time purchases
-        if (installments === 1) {
-             if (isAfter(expenseDate, closingDateOfLastMonth) && isBefore(expenseDate, closingDateOfThisMonth)) {
-                return total + expense.amount;
+        for (let i = 0; i < installments; i++) {
+            const installmentMonth = addMonths(startOfMonth(expenseDate), i);
+            
+            // Define o período da fatura para a parcela atual
+            let installmentClosingDate = set(installmentMonth, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
+            if (isAfter(expenseDate, installmentClosingDate) && i === 0) {
+                 installmentClosingDate = addMonths(installmentClosingDate, 1);
+            } else if (i > 0) {
+                // Para parcelas subsequentes, a data de referência é o início do mês da parcela.
+                 let refDateForInstallment = addMonths(startOfMonth(expenseDate), i);
+                 installmentClosingDate = set(refDateForInstallment, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
+                 if(isAfter(refDateForInstallment, installmentClosingDate)) {
+                     installmentClosingDate = addMonths(installmentClosingDate, 1);
+                 }
             }
-        } else {
-            // Installment purchases
-            for (let i = 0; i < installments; i++) {
-                const installmentDate = addMonths(startOfMonth(expenseDate), i);
-                
-                // The first installment's invoice period is based on the purchase date
-                if (i === 0) {
-                    if (isAfter(expenseDate, closingDateOfLastMonth) && isBefore(expenseDate, closingDateOfThisMonth)) {
-                        total += installmentAmount;
-                    }
-                } else {
-                    // Subsequent installments fall into later invoice periods
-                    let installmentClosingDate = set(installmentDate, { year: getYear(installmentDate), month: getMonth(installmentDate), date: card.closingDate, hours: 23, minutes: 59, seconds: 59 });
-                     if (isAfter(installmentDate, installmentClosingDate)) {
-                        installmentClosingDate = addMonths(installmentClosingDate, 1);
-                    }
-                    const installmentClosingDateLastMonth = subMonths(installmentClosingDate, 1);
 
-                     if (isAfter(closingDateOfLastMonth, installmentClosingDateLastMonth) && isBefore(closingDateOfThisMonth, addMonths(installmentClosingDate,1))) {
-                         total += installmentAmount;
-                     }
-                }
+
+            const installmentClosingDateLastMonth = subMonths(installmentClosingDate, 1);
+
+            // Verifica se o período da fatura da parcela é o mesmo da fatura atual em aberto.
+            if (isEqual(startOfMonth(closingDateForLastInvoice), startOfMonth(installmentClosingDateLastMonth))) {
+                invoiceTotal += installmentAmount;
             }
         }
-        
-        return total;
-    }, 0);
+    });
 
     return invoiceTotal;
 }
