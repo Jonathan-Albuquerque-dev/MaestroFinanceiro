@@ -9,6 +9,7 @@ import {
   Repeat,
   CreditCard,
   FileText,
+  LogOut
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import {
@@ -34,6 +35,13 @@ import { addMonths, isSameMonth, isSameYear } from 'date-fns';
 import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType, MemberExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/auth-context";
 
 function getThirdPartyExpenseValue(expense: ThirdPartyExpense): number {
   if (expense.installments && expense.installments > 1) {
@@ -65,6 +73,7 @@ export function Dashboard() {
   const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const q = query(collection(db, "transactions"), orderBy("date", "desc"));
@@ -265,10 +274,20 @@ export function Dashboard() {
                   <Button onClick={() => setAddDialogOpen(true)}>
                     <Wallet className="mr-2 h-4 w-4"/> Adicionar Transação
                   </Button>
-                  <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                       <Avatar className="cursor-pointer">
+                        <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} data-ai-hint="user avatar" />
+                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
             </header>
 

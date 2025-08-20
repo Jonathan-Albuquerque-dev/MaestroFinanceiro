@@ -15,6 +15,7 @@ import {
   Landmark,
   Wallet,
   FileText,
+  LogOut,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -59,6 +60,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from "@/contexts/auth-context";
 
 const paymentMethodIcons = {
   dinheiro: <Wallet className="h-4 w-4" />,
@@ -89,6 +91,7 @@ export function MemberExpensesDashboard() {
   const [selectedExpense, setSelectedExpense] = useState<MemberExpense | undefined>(undefined);
   const [installmentsExpense, setInstallmentsExpense] = useState<MemberExpense | undefined>(undefined);
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const q = query(collection(db, "memberExpenses"), orderBy("date", "desc"));
@@ -295,10 +298,20 @@ export function MemberExpensesDashboard() {
               <Button onClick={openAddDialog}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Despesa
               </Button>
-              <Avatar>
-                <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Avatar className="cursor-pointer">
+                    <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} data-ai-hint="user avatar" />
+                    <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                    </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 

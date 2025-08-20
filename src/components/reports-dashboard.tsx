@@ -10,6 +10,7 @@ import {
   FileText,
   Calendar as CalendarIcon,
   Filter,
+  LogOut,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -24,6 +25,12 @@ import {
 import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -50,6 +57,7 @@ import { categories } from "@/lib/mock-data";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 type CombinedData = (Transaction | FixedExpense | MemberExpense | ThirdPartyExpense) & {dataType: string};
 type ReportRow = [string, string, string, string, string];
@@ -73,6 +81,7 @@ export function ReportsDashboard() {
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>();
 
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const unsubTransactions = onSnapshot(query(collection(db, "transactions")), (snap) =>
@@ -360,10 +369,20 @@ export function ReportsDashboard() {
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Avatar>
-                <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Avatar className="cursor-pointer">
+                    <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} data-ai-hint="user avatar" />
+                    <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                    </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 

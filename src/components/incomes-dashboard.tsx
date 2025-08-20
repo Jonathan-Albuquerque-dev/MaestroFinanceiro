@@ -12,6 +12,7 @@ import {
   Pencil,
   Trash2,
   FileText,
+  LogOut,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -52,6 +53,7 @@ import type { FamilyMemberIncome } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 
 export function IncomesDashboard() {
@@ -59,6 +61,7 @@ export function IncomesDashboard() {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState<FamilyMemberIncome | undefined>(undefined);
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const q = query(collection(db, "familyIncomes"), orderBy("name"));
@@ -211,10 +214,20 @@ export function IncomesDashboard() {
                   <Button onClick={openAddDialog}>
                     <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Renda
                   </Button>
-                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                       <Avatar className="cursor-pointer">
+                        <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} data-ai-hint="user avatar" />
+                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
             </header>
 

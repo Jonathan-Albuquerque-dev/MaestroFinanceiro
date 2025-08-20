@@ -12,6 +12,7 @@ import {
   Trash2,
   CreditCard,
   FileText,
+  LogOut,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -52,12 +53,14 @@ import type { FixedExpense } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 export function FixedExpensesDashboard() {
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<FixedExpense | undefined>(undefined);
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const q = query(collection(db, "fixedExpenses"), orderBy("description"));
@@ -210,10 +213,20 @@ export function FixedExpensesDashboard() {
                   <Button onClick={openAddDialog}>
                     <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Despesa
                   </Button>
-                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                       <Avatar className="cursor-pointer">
+                        <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} data-ai-hint="user avatar" />
+                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
             </header>
 

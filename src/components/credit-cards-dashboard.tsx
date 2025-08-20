@@ -13,6 +13,7 @@ import {
   Trash2,
   CheckCircle,
   FileText,
+  LogOut,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -46,6 +47,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { getMonth, getYear, set, isAfter, subMonths, addMonths } from "date-fns";
+import { useAuth } from "@/contexts/auth-context";
 
 type GenericExpense = (Transaction | ThirdPartyExpense | MemberExpense) & { type?: 'transaction' | 'thirdParty' | 'member' };
 
@@ -98,6 +100,7 @@ export function CreditCardsDashboard() {
   const [selectedCard, setSelectedCard] = useState<CreditCardType | undefined>(undefined);
   const [paidInvoices, setPaidInvoices] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const qCards = query(collection(db, "creditCards"), orderBy("name"));
@@ -276,10 +279,20 @@ export function CreditCardsDashboard() {
                   <Button onClick={openAddDialog}>
                     <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Cartão
                   </Button>
-                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                       <Avatar className="cursor-pointer">
+                        <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} data-ai-hint="user avatar" />
+                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
             </header>
 
