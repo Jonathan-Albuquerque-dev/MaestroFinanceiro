@@ -40,18 +40,19 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "./ui/label";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, addMonths, setDate } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, Timestamp } from "firebase/firestore";
-import type { Transaction, FixedExpense, MemberExpense, ThirdPartyExpense, FamilyMemberIncome } from "@/lib/types";
+import type { Transaction, FixedExpense, MemberExpense, ThirdPartyExpense, FamilyMemberIncome, CreditCard as CreditCardType } from "@/lib/types";
 import { categories } from "@/lib/mock-data";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
 
 type CombinedData = (Transaction | FixedExpense | MemberExpense | ThirdPartyExpense) & {dataType: string};
+type ReportRow = [string, string, string, string, string];
 
 export function ReportsDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -59,6 +60,8 @@ export function ReportsDashboard() {
   const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberIncome[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [originFilter, setOriginFilter] = useState<string>("all");
@@ -86,6 +89,9 @@ export function ReportsDashboard() {
     const unsubFamilyMembers = onSnapshot(query(collection(db, "familyIncomes")), (snap) =>
       setFamilyMembers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as FamilyMemberIncome)))
     );
+    const unsubCreditCards = onSnapshot(query(collection(db, "creditCards")), (snap) =>
+      setCreditCards(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as CreditCardType)))
+    );
 
     return () => {
       unsubTransactions();
@@ -93,6 +99,7 @@ export function ReportsDashboard() {
       unsubMember();
       unsubThirdParty();
       unsubFamilyMembers();
+      unsubCreditCards();
     };
   }, []);
   
@@ -160,8 +167,8 @@ export function ReportsDashboard() {
 
 
       // Date Filter
-      if (dateFilter?.from && toDate(item.date) < dateFilter.from) pass = false;
-      if (dateFilter?.to && toDate(item.date) > dateFilter.to) pass = false;
+      if (dateFilter?.from && 'date' in item && toDate(item.date) < dateFilter.from) pass = false;
+      if (dateFilter?.to && 'date' in item && toDate(item.date) > dateFilter.to) pass = false;
       
       return pass;
     });
@@ -188,31 +195,62 @@ export function ReportsDashboard() {
         `Categoria: ${categoryFilter}`,
         `Período: ${dateFilter?.from ? format(dateFilter.from, "dd/MM/yy") : 'N/A'} - ${dateFilter?.to ? format(dateFilter.to, "dd/MM/yy"): 'N/A'}`
     ];
-    if (personFilter !== 'all') {
-        filtersApplied.push(`Pessoa: ${personFilter}`);
+    if (personFilter !== 'all' && (originFilter === 'memberExpenses' || originFilter === 'thirdPartyExpenses')) {
+        const personName = originFilter === 'memberExpenses' 
+            ? familyMembers.find(m => m.id === personFilter)?.name
+            : personFilter;
+        filtersApplied.push(`Pessoa: ${personName}`);
     }
     doc.text(filtersApplied.join(' | '), 14, 30);
 
 
+    const tableBody: ReportRow[] = [];
+    filteredData.forEach(item => {
+      const isInstallmentExpense = ('installments' in item && item.installments && item.installments > 1 && item.paymentMethod === 'credito');
+
+      if (isInstallmentExpense) {
+        const expense = item as MemberExpense | ThirdPartyExpense;
+        const card = creditCards.find(c => c.id === expense.creditCardId);
+        if (card) {
+          const purchaseDate = toDate(expense.date);
+          const installmentAmount = (expense.amount / expense.installments!).toFixed(2);
+          
+          let firstInvoiceDate = purchaseDate.getDate() > card.closingDate
+            ? addMonths(purchaseDate, 1)
+            : purchaseDate;
+
+          for (let i = 1; i <= expense.installments!; i++) {
+             const dueDate = setDate(firstInvoiceDate, card.dueDate);
+             const description = `${expense.description} (${i}/${expense.installments})`;
+             const type = 'Despesa';
+             const category = 'category' in expense ? expense.category : 'N/A';
+             const date = format(dueDate, 'dd/MM/yyyy');
+             tableBody.push([date, description, type, category, installmentAmount]);
+             firstInvoiceDate = addMonths(firstInvoiceDate, 1);
+          }
+        }
+      } else {
+         let description = 'N/A';
+          if ('description' in item) {
+              description = item.description;
+          } else if ('name' in item && item.dataType !== 'Despesa de Terceiro') {
+              description = (item as FamilyMemberIncome).name;
+          } else if ('name' in item) {
+              description = `${(item as ThirdPartyExpense).name} - ${item.description}`;
+          }
+
+          const type = 'type' in item ? (item.type === 'income' ? 'Receita' : 'Despesa') : 'Despesa';
+          const category = 'category' in item ? item.category : 'N/A';
+          const amount = item.amount.toFixed(2);
+          const date = 'date' in item && item.date ? format(toDate(item.date), 'dd/MM/yyyy') : 'N/A';
+          tableBody.push([date, description, type, category, amount])
+      }
+    });
+
     (doc as any).autoTable({
         startY: 35,
-        head: [['Data', 'Descrição', 'Tipo', 'Categoria', 'Valor (R$)']],
-        body: filteredData.map(item => {
-            let description = 'N/A';
-            if ('description' in item) {
-                description = item.description;
-            } else if ('name' in item && item.dataType !== 'Despesa de Terceiro') {
-                description = (item as FamilyMemberIncome).name;
-            } else if ('name' in item) {
-                description = `${(item as ThirdPartyExpense).name} - ${item.description}`;
-            }
-
-            const type = 'type' in item ? (item.type === 'income' ? 'Receita' : 'Despesa') : 'Despesa';
-            const category = 'category' in item ? item.category : 'N/A';
-            const amount = item.amount.toFixed(2);
-            const date = 'date' in item ? format(toDate(item.date), 'dd/MM/yyyy') : 'N/A';
-            return [date, description, type, category, amount]
-        }),
+        head: [['Vencimento', 'Descrição', 'Tipo', 'Categoria', 'Valor (R$)']],
+        body: tableBody,
         styles: { fontSize: 8 },
         headStyles: { fillColor: [22, 163, 74] },
     });
