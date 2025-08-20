@@ -80,30 +80,39 @@ function formatDate(date: string | Timestamp) {
     return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
 }
 
-function getCurrentInstallmentText(expense: MemberExpense): string {
-    if (!expense.installments || expense.installments <= 1) {
-        return 'N/A';
-    }
+function getCurrentInstallmentText(
+  purchaseDate: Date,
+  currentDate: Date,
+  totalInstallments: number,
+  closingDay: number
+) {
+  // transforma ano/mês em um índice linear (mês zero-based)
+  const monthIndex = (y: number, m: number) => y * 12 + m;
 
-    const purchaseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
-    const currentDate = new Date();
-    const totalInstallments = expense.installments;
+  // Se comprou no dia do fechamento OU depois, a 1ª parcela entra no ciclo do mês seguinte
+  const firstCycleShift = purchaseDate.getDate() >= closingDay ? 1 : 0;
+  const firstCycleIndex = monthIndex(
+    purchaseDate.getFullYear(),
+    purchaseDate.getMonth() + firstCycleShift
+  );
 
-    const yearDiff = currentDate.getFullYear() - purchaseDate.getFullYear();
-    const monthDiff = currentDate.getMonth() - purchaseDate.getMonth();
+  // Se ainda não chegou no fechamento deste mês, o ciclo "corrente" ainda é o do mês anterior
+  const currentCycleShift = currentDate.getDate() < closingDay ? -1 : 0;
+  const currentCycleIndex = monthIndex(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + currentCycleShift
+  );
 
-    let diffInMonths = yearDiff * 12 + monthDiff;
+  // meses decorridos entre o 1º ciclo e o ciclo corrente
+  const monthsElapsed = currentCycleIndex - firstCycleIndex;
 
-    const currentInstallment = diffInMonths + 1;
+  // parcela atual é meses decorridos + 1 (mínimo 1, máximo totalInstallments)
+  const rawInstallment = monthsElapsed + 1;
+  const installment = Math.max(1, Math.min(rawInstallment, totalInstallments));
 
-    const installment = Math.min(currentInstallment, totalInstallments);
-    
-    if (installment < 1) {
-      return `1/${totalInstallments}`;
-    }
-
-    return `${installment}/${totalInstallments}`;
+  return `${installment}/${totalInstallments}`;
 }
+
 
 export function MemberExpensesDashboard() {
   const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
@@ -327,52 +336,64 @@ export function MemberExpensesDashboard() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {memberExpenses.map((expense) => (
-                            <TableRow key={expense.id}>
-                                <TableCell className="font-medium">{getMemberName(expense.memberId)}</TableCell>
-                                <TableCell>{expense.description}</TableCell>
-                                <TableCell>{formatDate(expense.date)}</TableCell>
-                                <TableCell>{expense.category}</TableCell>
-                                <TableCell>
-                                  {expense.paymentMethod && (
-                                    <Badge variant="outline" className="flex items-center gap-1.5">
-                                      {paymentMethodIcons[expense.paymentMethod]}
-                                      {paymentMethodLabels[expense.paymentMethod]}
-                                      {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                                 <TableCell>
-                                    {getCurrentInstallmentText(expense)}
-                                 </TableCell>
-                                <TableCell className="text-right font-medium text-destructive">
-                                    {expense.amount.toLocaleString("pt-BR", {
-                                        style: "currency",
-                                        currency: "BRL",
-                                    })}
-                                </TableCell>
-                                <TableCell>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" className="h-8 w-8 p-0">
-                                        <span className="sr-only">Abrir menu</span>
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => openEditDialog(expense)}>
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleDelete(expense.id)} className="text-destructive">
-                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Excluir
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            ))}
+                            {memberExpenses.map((expense) => {
+                              const card = creditCards.find(c => c.id === expense.creditCardId);
+                              const showInstallments = expense.paymentMethod === 'credito' && expense.installments && card;
+                              return (
+                                <TableRow key={expense.id}>
+                                    <TableCell className="font-medium">{getMemberName(expense.memberId)}</TableCell>
+                                    <TableCell>{expense.description}</TableCell>
+                                    <TableCell>{formatDate(expense.date)}</TableCell>
+                                    <TableCell>{expense.category}</TableCell>
+                                    <TableCell>
+                                      {expense.paymentMethod && (
+                                        <Badge variant="outline" className="flex items-center gap-1.5">
+                                          {paymentMethodIcons[expense.paymentMethod]}
+                                          {paymentMethodLabels[expense.paymentMethod]}
+                                          {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
+                                        </Badge>
+                                      )}
+                                    </TableCell>
+                                     <TableCell>
+                                        {showInstallments ? 
+                                          getCurrentInstallmentText(
+                                            expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date),
+                                            new Date(),
+                                            expense.installments!,
+                                            card!.closingDate
+                                          ) 
+                                          : 'N/A'
+                                        }
+                                     </TableCell>
+                                    <TableCell className="text-right font-medium text-destructive">
+                                        {expense.amount.toLocaleString("pt-BR", {
+                                            style: "currency",
+                                            currency: "BRL",
+                                        })}
+                                    </TableCell>
+                                    <TableCell>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Abrir menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => openEditDialog(expense)}>
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Editar
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => handleDelete(expense.id)} className="text-destructive">
+                                             <Trash2 className="mr-2 h-4 w-4" />
+                                            Excluir
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                              )
+                            })}
                         </TableBody>
                         </Table>
                     </CardContent>
