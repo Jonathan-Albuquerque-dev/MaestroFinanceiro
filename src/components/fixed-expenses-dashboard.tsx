@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  CreditCard,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -167,6 +168,14 @@ export function FixedExpensesDashboard() {
                 <SidebarMenuButton>
                   <Users />
                   <span>Despesas de Terceiros</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/credit-cards" passHref>
+                <SidebarMenuButton>
+                  <CreditCard />
+                  <span>Cartões de Crédito</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>

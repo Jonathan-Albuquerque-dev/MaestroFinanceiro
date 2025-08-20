@@ -7,10 +7,10 @@ import {
   Users,
   PlusCircle,
   Repeat,
+  CreditCard,
   MoreHorizontal,
   Pencil,
   Trash2,
-  CreditCard,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -28,7 +28,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -46,85 +45,83 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AddEditThirdPartyExpenseDialog } from "./add-edit-third-party-expense-dialog";
-import type { ThirdPartyExpense } from "@/lib/types";
+import { AddEditCreditCardDialog } from "./add-edit-credit-card-dialog";
+import type { CreditCard as CreditCardType } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
-export function ThirdPartyExpensesDashboard() {
-  const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
+export function CreditCardsDashboard() {
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<ThirdPartyExpense | undefined>(undefined);
+  const [selectedCard, setSelectedCard] = useState<CreditCardType | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "thirdPartyExpenses"), orderBy("name"));
+    const q = query(collection(db, "creditCards"), orderBy("name"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const expensesData: ThirdPartyExpense[] = [];
+      const cardsData: CreditCardType[] = [];
       querySnapshot.forEach((doc) => {
-        expensesData.push({ id: doc.id, ...doc.data() } as ThirdPartyExpense);
+        cardsData.push({ id: doc.id, ...doc.data() } as CreditCardType);
       });
-      setThirdPartyExpenses(expensesData);
+      setCreditCards(cardsData);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handleAddOrUpdate = async (expense: Omit<ThirdPartyExpense, "id"> | ThirdPartyExpense) => {
+  const handleAddOrUpdate = async (card: Omit<CreditCardType, "id"> | CreditCardType) => {
     try {
-      if ("id" in expense) {
-        const docRef = doc(db, "thirdPartyExpenses", expense.id);
-        await updateDoc(docRef, { ...expense });
+      if ("id" in card) {
+        const docRef = doc(db, "creditCards", card.id);
+        await updateDoc(docRef, { ...card });
         toast({
           title: "Sucesso!",
-          description: "Despesa de terceiro atualizada com sucesso.",
+          description: "Cartão atualizado com sucesso.",
         });
       } else {
-        await addDoc(collection(db, "thirdPartyExpenses"), expense);
+        await addDoc(collection(db, "creditCards"), card);
         toast({
           title: "Sucesso!",
-          description: "Despesa de terceiro adicionada com sucesso.",
+          description: "Cartão adicionado com sucesso.",
         });
       }
     } catch (error) {
-       console.error("Erro ao salvar despesa de terceiro: ", error);
+       console.error("Erro ao salvar cartão: ", error);
        toast({
         variant: "destructive",
         title: "Erro!",
-        description: "Não foi possível salvar a despesa.",
+        description: "Não foi possível salvar o cartão.",
       });
     }
   };
 
-  const handleDelete = async (expenseId: string) => {
+  const handleDelete = async (cardId: string) => {
     try {
-      await deleteDoc(doc(db, "thirdPartyExpenses", expenseId));
+      await deleteDoc(doc(db, "creditCards", cardId));
       toast({
         title: "Sucesso!",
-        description: "Despesa de terceiro excluída com sucesso.",
+        description: "Cartão excluído com sucesso.",
       });
     } catch (error) {
-      console.error("Erro ao excluir despesa de terceiro: ", error);
+      console.error("Erro ao excluir cartão: ", error);
       toast({
         variant: "destructive",
         title: "Erro!",
-        description: "Não foi possível excluir a despesa.",
+        description: "Não foi possível excluir o cartão.",
       });
     }
   }
 
   const openAddDialog = () => {
-    setSelectedExpense(undefined);
+    setSelectedCard(undefined);
     setDialogOpen(true);
   }
 
-  const openEditDialog = (expense: ThirdPartyExpense) => {
-    setSelectedExpense(expense);
+  const openEditDialog = (card: CreditCardType) => {
+    setSelectedCard(card);
     setDialogOpen(true);
   }
-  
-  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
     <SidebarProvider>
@@ -163,9 +160,9 @@ export function ThirdPartyExpensesDashboard() {
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+            <SidebarMenuItem>
               <NextLink href="/third-party-expenses" passHref>
-                <SidebarMenuButton isActive>
+                <SidebarMenuButton>
                   <Users />
                   <span>Despesas de Terceiros</span>
                 </SidebarMenuButton>
@@ -173,7 +170,7 @@ export function ThirdPartyExpensesDashboard() {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <NextLink href="/credit-cards" passHref>
-                <SidebarMenuButton>
+                <SidebarMenuButton isActive>
                   <CreditCard />
                   <span>Cartões de Crédito</span>
                 </SidebarMenuButton>
@@ -186,12 +183,12 @@ export function ThirdPartyExpensesDashboard() {
         <div className="flex-1 p-4 md:p-8 space-y-8">
             <header className="flex items-center justify-between space-y-2">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">Despesas de Terceiros</h2>
-                    <p className="text-muted-foreground">Gerencie os gastos de outras pessoas em seu cartão.</p>
+                    <h2 className="text-3xl font-bold tracking-tight font-headline">Cartões de Crédito</h2>
+                    <p className="text-muted-foreground">Gerencie seus cartões de crédito.</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <Button onClick={openAddDialog}>
-                    <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Despesa
+                    <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Cartão
                   </Button>
                    <Avatar>
                     <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
@@ -203,44 +200,24 @@ export function ThirdPartyExpensesDashboard() {
             <main className="space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Total a Receber</CardTitle>
-                        <CardDescription>A soma de todos os gastos de terceiros a serem reembolsados.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3xl font-bold text-accent">
-                           {totalThirdPartyExpenses.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                            })}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Lista de Despesas</CardTitle>
-                        <CardDescription>Despesas de terceiros cadastradas.</CardDescription>
+                        <CardTitle>Seus Cartões</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                         <TableHeader>
                             <TableRow>
-                            <TableHead>Nome</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
+                            <TableHead>Nome do Cartão</TableHead>
+                            <TableHead>Data de Fechamento</TableHead>
+                            <TableHead>Data de Vencimento</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {thirdPartyExpenses.map((expense) => (
-                            <TableRow key={expense.id}>
-                                <TableCell className="font-medium">{expense.name}</TableCell>
-                                <TableCell>{expense.description}</TableCell>
-                                <TableCell className="text-right font-medium text-accent">
-                                    {expense.amount.toLocaleString("pt-BR", {
-                                        style: "currency",
-                                        currency: "BRL",
-                                    })}
-                                </TableCell>
+                            {creditCards.map((card) => (
+                            <TableRow key={card.id}>
+                                <TableCell className="font-medium">{card.name}</TableCell>
+                                <TableCell>Dia {card.closingDate}</TableCell>
+                                <TableCell>Dia {card.dueDate}</TableCell>
                                 <TableCell>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
@@ -250,11 +227,11 @@ export function ThirdPartyExpensesDashboard() {
                                       </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => openEditDialog(expense)}>
+                                      <DropdownMenuItem onClick={() => openEditDialog(card)}>
                                         <Pencil className="mr-2 h-4 w-4" />
                                         Editar
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleDelete(expense.id)} className="text-destructive">
+                                      <DropdownMenuItem onClick={() => handleDelete(card.id)} className="text-destructive">
                                          <Trash2 className="mr-2 h-4 w-4" />
                                         Excluir
                                       </DropdownMenuItem>
@@ -270,11 +247,11 @@ export function ThirdPartyExpensesDashboard() {
             </main>
         </div>
       </SidebarInset>
-      <AddEditThirdPartyExpenseDialog
+      <AddEditCreditCardDialog
         open={isDialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleAddOrUpdate}
-        expense={selectedExpense}
+        card={selectedCard}
       />
     </SidebarProvider>
   );

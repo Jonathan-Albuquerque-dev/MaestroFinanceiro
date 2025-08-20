@@ -29,6 +29,13 @@ export type ThirdPartyExpense = {
   amount: number;
 };
 
+export type CreditCard = {
+  id: string;
+  name: string;
+  closingDate: number;
+  dueDate: number;
+};
+
 export type Category = 'Alimentação' | 'Transporte' | 'Moradia' | 'Saúde' | 'Educação' | 'Lazer' | 'Salário' | 'Renda Extra' | 'Outros';
 
 export type ChartData = {

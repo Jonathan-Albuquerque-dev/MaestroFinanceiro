@@ -7,6 +7,7 @@ import {
   Users,
   Wallet,
   Repeat,
+  CreditCard,
 } from "lucide-react";
 import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import {
@@ -171,6 +172,14 @@ export function Dashboard() {
                 <SidebarMenuButton>
                   <Users />
                   <span>Despesas de Terceiros</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/credit-cards" passHref>
+                <SidebarMenuButton>
+                  <CreditCard />
+                  <span>Cartões de Crédito</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
