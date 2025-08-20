@@ -89,25 +89,24 @@ function getCurrentInstallmentText(
   // transforma ano/mês em um índice linear (mês zero-based)
   const monthIndex = (y: number, m: number) => y * 12 + m;
 
-  // Se comprou APÓS o dia do fechamento, a 1ª parcela entra no ciclo do mês seguinte
-  const firstCycleShift = purchaseDate.getDate() > closingDay ? 1 : 0;
+  // Se comprou NO DIA do fechamento ou depois → 1ª parcela é no ciclo seguinte
+  const firstCycleShift = purchaseDate.getDate() >= closingDay ? 1 : 0;
   const firstCycleIndex = monthIndex(
     purchaseDate.getFullYear(),
     purchaseDate.getMonth() + firstCycleShift
   );
 
-  // Se ainda não chegou no fechamento deste mês, o ciclo "corrente" ainda é o do mês anterior
-  const currentCycleShift = currentDate.getDate() <= closingDay ? -1 : 0;
+  // Se ainda não chegou no fechamento deste mês → ciclo ainda é do mês anterior
+  const currentCycleShift = currentDate.getDate() < closingDay ? -1 : 0;
   const currentCycleIndex = monthIndex(
     currentDate.getFullYear(),
     currentDate.getMonth() + currentCycleShift
   );
 
-  // meses decorridos entre o 1º ciclo e o ciclo corrente
   const monthsElapsed = currentCycleIndex - firstCycleIndex;
-
-  // parcela atual é meses decorridos + 1 (mínimo 1, máximo totalInstallments)
   const rawInstallment = monthsElapsed + 1;
+
+  // Garante que nunca seja menor que 1 nem maior que o total
   const installment = Math.max(1, Math.min(rawInstallment, totalInstallments));
 
   return `${installment}/${totalInstallments}`;
