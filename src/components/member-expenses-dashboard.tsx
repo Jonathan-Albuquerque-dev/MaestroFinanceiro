@@ -55,7 +55,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { format } from 'date-fns';
+import { format, isSameMonth, isSameYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
@@ -295,6 +295,7 @@ export function MemberExpensesDashboard() {
                             <TableHead>Data</TableHead>
                             <TableHead>Categoria</TableHead>
                             <TableHead>Pagamento</TableHead>
+                            <TableHead>Parcelas</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
@@ -314,6 +315,9 @@ export function MemberExpensesDashboard() {
                                       {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
                                     </Badge>
                                   )}
+                                </TableCell>
+                                <TableCell>
+                                    {expense.installments && expense.installments > 1 ? `1/${expense.installments}` : 'N/A'}
                                 </TableCell>
                                 <TableCell className="text-right font-medium text-destructive">
                                     {expense.amount.toLocaleString("pt-BR", {

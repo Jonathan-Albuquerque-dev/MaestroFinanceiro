@@ -9,7 +9,7 @@ import {
   Repeat,
   CreditCard,
 } from "lucide-react";
-import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import {
   SidebarProvider,
   Sidebar,
@@ -28,10 +28,27 @@ import { AddTransactionDialog } from "./add-transaction-dialog";
 import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
+import { addMonths, isSameMonth, isSameYear } from 'date-fns';
 
 import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType, MemberExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+
+function getCurrentMonthInstallment(expense: MemberExpense | ThirdPartyExpense, today: Date): number {
+    const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
+    const installments = expense.installments || 1;
+    const installmentAmount = expense.amount / installments;
+    let currentMonthAmount = 0;
+
+    for (let i = 0; i < installments; i++) {
+        const installmentDate = addMonths(expenseDate, i);
+        if (isSameMonth(installmentDate, today) && isSameYear(installmentDate, today)) {
+            currentMonthAmount += installmentAmount;
+        }
+    }
+    return currentMonthAmount;
+}
+
 
 export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -83,7 +100,7 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const q = query(collection(db, "thirdPartyExpenses"), orderBy("name"));
+    const q = query(collection(db, "thirdPartyExpenses"), orderBy("date", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const expensesData: ThirdPartyExpense[] = [];
       querySnapshot.forEach((doc) => {
@@ -154,9 +171,9 @@ export function Dashboard() {
 
   const totalExpense = totalVariableExpense + totalFixedExpense;
 
-  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, e) => sum + e.amount, 0);
-  
-  const totalMemberExpenses = memberExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const today = new Date();
+  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallment(expense, today), 0);
+  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallment(expense, today), 0);
 
   const balance = totalIncome - totalExpense;
 
