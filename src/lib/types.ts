@@ -15,6 +15,13 @@ export type FamilyMemberIncome = {
   income: number;
 };
 
+export type FixedExpense = {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+};
+
 export type Category = 'Alimentação' | 'Transporte' | 'Moradia' | 'Saúde' | 'Educação' | 'Lazer' | 'Salário' | 'Renda Extra' | 'Outros';
 
 export type ChartData = {

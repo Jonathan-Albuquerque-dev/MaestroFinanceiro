@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   PlusCircle,
+  Repeat,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -105,6 +106,14 @@ export function IncomesDashboard() {
                 <SidebarMenuButton isActive>
                   <Users />
                   <span>Rendas</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/fixed-expenses" passHref>
+                <SidebarMenuButton>
+                  <Repeat />
+                  <span>Despesas Fixas</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>

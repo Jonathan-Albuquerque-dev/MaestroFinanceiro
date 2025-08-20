@@ -6,8 +6,9 @@ import {
   LayoutDashboard,
   Users,
   Wallet,
+  Repeat,
 } from "lucide-react";
-import { collection, addDoc, getDocs, onSnapshot, query, orderBy } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
 import {
   SidebarProvider,
   Sidebar,
@@ -102,6 +103,14 @@ export function Dashboard() {
                 <SidebarMenuButton>
                   <Users />
                   <span>Rendas</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/fixed-expenses" passHref>
+                <SidebarMenuButton>
+                  <Repeat />
+                  <span>Despesas Fixas</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
