@@ -12,12 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import type { MemberExpense } from "@/lib/types";
+import type { MemberExpense, ThirdPartyExpense } from "@/lib/types";
 
 type InstallmentsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  expense: MemberExpense;
+  expense: MemberExpense | ThirdPartyExpense;
   onUpdateInstallments: (expenseId: string, paidInstallments: number[]) => void;
 };
 
