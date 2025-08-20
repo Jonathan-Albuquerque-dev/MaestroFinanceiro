@@ -11,6 +11,9 @@ import {
   Pencil,
   Trash2,
   CreditCard,
+  Banknote,
+  Landmark,
+  Wallet,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -47,13 +50,29 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddEditThirdPartyExpenseDialog } from "./add-edit-third-party-expense-dialog";
-import type { ThirdPartyExpense } from "@/lib/types";
+import type { ThirdPartyExpense, CreditCard as CreditCardType } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "./ui/badge";
+
+const paymentMethodIcons = {
+  dinheiro: <Wallet className="h-4 w-4" />,
+  pix: <Landmark className="h-4 w-4" />,
+  debito: <Banknote className="h-4 w-4" />,
+  credito: <CreditCard className="h-4 w-4" />,
+}
+
+const paymentMethodLabels = {
+    dinheiro: "Dinheiro",
+    pix: "Pix",
+    debito: "Débito",
+    credito: "Crédito"
+}
 
 export function ThirdPartyExpensesDashboard() {
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<ThirdPartyExpense | undefined>(undefined);
   const { toast } = useToast();
@@ -66,6 +85,19 @@ export function ThirdPartyExpensesDashboard() {
         expensesData.push({ id: doc.id, ...doc.data() } as ThirdPartyExpense);
       });
       setThirdPartyExpenses(expensesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "creditCards"), orderBy("name"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const cardsData: CreditCardType[] = [];
+      querySnapshot.forEach((doc) => {
+        cardsData.push({ id: doc.id, ...doc.data() } as CreditCardType);
+      });
+      setCreditCards(cardsData);
     });
 
     return () => unsubscribe();
@@ -226,6 +258,7 @@ export function ThirdPartyExpensesDashboard() {
                             <TableRow>
                             <TableHead>Nome</TableHead>
                             <TableHead>Descrição</TableHead>
+                            <TableHead>Pagamento</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
@@ -235,6 +268,15 @@ export function ThirdPartyExpensesDashboard() {
                             <TableRow key={expense.id}>
                                 <TableCell className="font-medium">{expense.name}</TableCell>
                                 <TableCell>{expense.description}</TableCell>
+                                <TableCell>
+                                  {expense.paymentMethod && (
+                                    <Badge variant="outline" className="flex items-center gap-1.5">
+                                      {paymentMethodIcons[expense.paymentMethod]}
+                                      {paymentMethodLabels[expense.paymentMethod]}
+                                      {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
+                                    </Badge>
+                                  )}
+                                </TableCell>
                                 <TableCell className="text-right font-medium text-accent">
                                     {expense.amount.toLocaleString("pt-BR", {
                                         style: "currency",
@@ -275,6 +317,7 @@ export function ThirdPartyExpensesDashboard() {
         onOpenChange={setDialogOpen}
         onSave={handleAddOrUpdate}
         expense={selectedExpense}
+        creditCards={creditCards}
       />
     </SidebarProvider>
   );

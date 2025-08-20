@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -23,19 +23,39 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import type { ThirdPartyExpense } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { ThirdPartyExpense, CreditCard } from "@/lib/types";
 
 const formSchema = z.object({
   name: z.string().min(2, "O nome deve ter no mínimo 2 caracteres."),
   description: z.string().min(2, "A descrição deve ter no mínimo 2 caracteres."),
   amount: z.coerce.number().positive("O valor deve ser um número positivo."),
+  paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]),
+  creditCardId: z.string().optional(),
+  installments: z.coerce.number().int().min(1).optional(),
+}).refine(data => {
+    if (data.paymentMethod === 'credito' && !data.creditCardId) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Cartão de crédito é obrigatório para essa forma de pagamento.",
+    path: ["creditCardId"],
 });
+
 
 type AddEditThirdPartyExpenseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (expense: Omit<ThirdPartyExpense, "id"> | ThirdPartyExpense) => void;
   expense?: ThirdPartyExpense;
+  creditCards: CreditCard[];
 };
 
 export function AddEditThirdPartyExpenseDialog({
@@ -43,6 +63,7 @@ export function AddEditThirdPartyExpenseDialog({
   onOpenChange,
   onSave,
   expense,
+  creditCards,
 }: AddEditThirdPartyExpenseDialogProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,7 +71,14 @@ export function AddEditThirdPartyExpenseDialog({
       name: "",
       description: "",
       amount: 0,
+      paymentMethod: "dinheiro",
+      installments: 1,
     },
+  });
+
+   const paymentMethod = useWatch({
+      control: form.control,
+      name: "paymentMethod"
   });
 
   useEffect(() => {
@@ -61,6 +89,9 @@ export function AddEditThirdPartyExpenseDialog({
         name: "",
         description: "",
         amount: 0,
+        paymentMethod: "dinheiro",
+        installments: 1,
+        creditCardId: undefined,
       });
     }
   }, [open, expense, form]);
@@ -123,6 +154,70 @@ export function AddEditThirdPartyExpenseDialog({
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                  <FormItem>
+                  <FormLabel>Meio de Pagamento</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                      <SelectTrigger>
+                          <SelectValue placeholder="Selecione o meio de pagamento" />
+                      </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                          <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                          <SelectItem value="pix">Pix</SelectItem>
+                          <SelectItem value="debito">Débito</SelectItem>
+                          <SelectItem value="credito">Crédito</SelectItem>
+                      </SelectContent>
+                  </Select>
+                  <FormMessage />
+                  </FormItem>
+              )}
+            />
+            {paymentMethod === 'credito' && (
+                <>
+                    <FormField
+                        control={form.control}
+                        name="creditCardId"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Cartão de Crédito</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o cartão" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {creditCards.map((card) => (
+                                    <SelectItem key={card.id} value={card.id}>
+                                    {card.name}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                      <FormField
+                        control={form.control}
+                        name="installments"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Parcelas</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="1" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </>
+            )}
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="secondary">

@@ -30,6 +30,9 @@ export type ThirdPartyExpense = {
   name: string;
   description: string;
   amount: number;
+  paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
+  creditCardId?: string;
+  installments?: number;
 };
 
 export type CreditCard = {
