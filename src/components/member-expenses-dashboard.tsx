@@ -85,12 +85,11 @@ function getCurrentInstallmentText(
   totalInstallments: number,
   closingDayInput: number | string
 ) {
-  // trabalhar sempre com UTC para não “voltar” um dia no fuso -03
-  const closingDay = Number(closingDayInput) - 1;
+  const closingDay = Number(closingDayInput);
 
   const pY = purchaseDate.getUTCFullYear();
-  const pM = purchaseDate.getUTCMonth();     // 0..11
-  const pD = purchaseDate.getUTCDate();      // 1..31
+  const pM = purchaseDate.getUTCMonth();
+  const pD = purchaseDate.getUTCDate();
 
   const cY = currentDate.getUTCFullYear();
   const cM = currentDate.getUTCMonth();
@@ -99,17 +98,22 @@ function getCurrentInstallmentText(
   const monthIndex = (y: number, m: number) => y * 12 + m;
 
   // Compra no DIA do fechamento ou depois => 1º ciclo é o mês seguinte
-  const firstCycleShift = pD >= closingDay ? 1 : 0;
+  const firstCycleShift = pD > closingDay ? 1 : 0; // repare que agora é só ">"
   const firstCycleIndex  = monthIndex(pY, pM + firstCycleShift);
 
   // Antes do fechamento do mês atual => ainda estamos no ciclo anterior
   const currentCycleShift = cD < closingDay ? -1 : 0;
   const currentCycleIndex = monthIndex(cY, cM + currentCycleShift);
 
-  const monthsElapsed   = currentCycleIndex - firstCycleIndex;
-  const rawInstallment  = monthsElapsed + 1;
-  const installment     = Math.max(1, Math.min(rawInstallment, totalInstallments));
+  let monthsElapsed  = currentCycleIndex - firstCycleIndex;
+  let rawInstallment = monthsElapsed + 1;
 
+  // ⚡ ajuste especial: se foi exatamente no dia do fechamento, -1
+  if (pD === closingDay) {
+    rawInstallment -= 1;
+  }
+
+  const installment = Math.max(1, Math.min(rawInstallment, totalInstallments));
   return `${installment}/${totalInstallments}`;
 }
 
