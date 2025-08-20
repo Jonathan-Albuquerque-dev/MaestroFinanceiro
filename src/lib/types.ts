@@ -30,6 +30,7 @@ export type ThirdPartyExpense = {
   name: string;
   description: string;
   amount: number;
+  date: string | Timestamp;
   paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
   creditCardId?: string;
   installments?: number;

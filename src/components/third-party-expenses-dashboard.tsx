@@ -51,10 +51,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AddEditThirdPartyExpenseDialog } from "./add-edit-third-party-expense-dialog";
 import type { ThirdPartyExpense, CreditCard as CreditCardType } from "@/lib/types";
-import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
   dinheiro: <Wallet className="h-4 w-4" />,
@@ -70,6 +72,13 @@ const paymentMethodLabels = {
     credito: "Crédito"
 }
 
+function formatDate(date: string | Timestamp) {
+    if (typeof date === 'string') {
+        return format(new Date(date), "dd/MM/yyyy", { locale: ptBR })
+    }
+    return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
+}
+
 export function ThirdPartyExpensesDashboard() {
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
@@ -78,7 +87,7 @@ export function ThirdPartyExpensesDashboard() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "thirdPartyExpenses"), orderBy("name"));
+    const q = query(collection(db, "thirdPartyExpenses"), orderBy("date", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const expensesData: ThirdPartyExpense[] = [];
       querySnapshot.forEach((doc) => {
@@ -258,6 +267,7 @@ export function ThirdPartyExpensesDashboard() {
                             <TableRow>
                             <TableHead>Nome</TableHead>
                             <TableHead>Descrição</TableHead>
+                             <TableHead>Data</TableHead>
                             <TableHead>Pagamento</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
@@ -268,6 +278,7 @@ export function ThirdPartyExpensesDashboard() {
                             <TableRow key={expense.id}>
                                 <TableCell className="font-medium">{expense.name}</TableCell>
                                 <TableCell>{expense.description}</TableCell>
+                                <TableCell>{formatDate(expense.date)}</TableCell>
                                 <TableCell>
                                   {expense.paymentMethod && (
                                     <Badge variant="outline" className="flex items-center gap-1.5">

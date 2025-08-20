@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,12 +33,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { ThirdPartyExpense, CreditCard } from "@/lib/types";
 
 const formSchema = z.object({
   name: z.string().min(2, "O nome deve ter no mínimo 2 caracteres."),
   description: z.string().min(2, "A descrição deve ter no mínimo 2 caracteres."),
   amount: z.coerce.number().positive("O valor deve ser um número positivo."),
+  date: z.date({ required_error: "Data é obrigatória." }),
   paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]),
   creditCardId: z.string().optional(),
   installments: z.coerce.number().int().min(1).optional(),
@@ -71,6 +82,7 @@ export function AddEditThirdPartyExpenseDialog({
       name: "",
       description: "",
       amount: 0,
+      date: new Date(),
       paymentMethod: "dinheiro",
       installments: 1,
     },
@@ -83,12 +95,17 @@ export function AddEditThirdPartyExpenseDialog({
 
   useEffect(() => {
     if (open && expense) {
-      form.reset(expense);
+      const expenseData = {
+        ...expense,
+        date: typeof expense.date === 'string' ? new Date(expense.date) : expense.date.toDate(),
+      }
+      form.reset(expenseData);
     } else if (open && !expense) {
       form.reset({
         name: "",
         description: "",
         amount: 0,
+        date: new Date(),
         paymentMethod: "dinheiro",
         installments: 1,
         creditCardId: undefined,
@@ -98,10 +115,11 @@ export function AddEditThirdPartyExpenseDialog({
   
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    const dataToSave = { ...values, date: values.date.toISOString() };
     if (expense) {
-      onSave({ ...expense, ...values });
+      onSave({ ...expense, ...dataToSave });
     } else {
-      onSave(values);
+      onSave(dataToSave);
     }
     onOpenChange(false);
     form.reset();
@@ -150,6 +168,48 @@ export function AddEditThirdPartyExpenseDialog({
                   <FormControl>
                     <Input type="number" placeholder="R$ 0,00" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Data</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP", { locale: ptBR })
+                          ) : (
+                            <span>Escolha uma data</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
