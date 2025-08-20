@@ -55,7 +55,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { format, differenceInMonths, startOfMonth } from 'date-fns';
+import { format, differenceInMonths, getYear, getMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
@@ -87,14 +87,11 @@ function getCurrentInstallmentText(expense: MemberExpense): string {
     const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
     const now = new Date();
     
-    // Set dates to the start of the month for a clean month calculation
-    const startOfExpenseMonth = startOfMonth(expenseDate);
-    const startOfCurrentMonth = startOfMonth(now);
+    const monthsDiff = (getYear(now) - getYear(expenseDate)) * 12 + (getMonth(now) - getMonth(expenseDate));
 
-    let monthsDiff = differenceInMonths(startOfCurrentMonth, startOfExpenseMonth);
-
-    // If the purchase date is in the future, diff will be negative
-    if (monthsDiff < 0) monthsDiff = 0;
+    if (monthsDiff < 0) {
+       return `1/${expense.installments}`;
+    }
 
     const currentInstallment = monthsDiff + 1;
 
@@ -391,3 +388,5 @@ export function MemberExpensesDashboard() {
     </SidebarProvider>
   );
 }
+
+    
