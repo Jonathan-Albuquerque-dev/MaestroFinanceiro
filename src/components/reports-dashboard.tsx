@@ -45,7 +45,7 @@ import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, query, Timestamp } from "firebase/firestore";
-import type { Transaction, FixedExpense, MemberExpense, ThirdPartyExpense } from "@/lib/types";
+import type { Transaction, FixedExpense, MemberExpense, ThirdPartyExpense, FamilyMemberIncome } from "@/lib/types";
 import { categories } from "@/lib/mock-data";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -58,8 +58,11 @@ export function ReportsDashboard() {
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberIncome[]>([]);
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [originFilter, setOriginFilter] = useState<string>("all");
+  const [personFilter, setPersonFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<DateRange | undefined>();
 
@@ -80,27 +83,57 @@ export function ReportsDashboard() {
         snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as ThirdPartyExpense))
       )
     );
+    const unsubFamilyMembers = onSnapshot(query(collection(db, "familyIncomes")), (snap) =>
+      setFamilyMembers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as FamilyMemberIncome)))
+    );
 
     return () => {
       unsubTransactions();
       unsubFixed();
       unsubMember();
       unsubThirdParty();
+      unsubFamilyMembers();
     };
   }, []);
+  
+  useEffect(() => {
+      setPersonFilter("all");
+  }, [originFilter]);
 
   const toDate = (date: string | Timestamp | Date): Date => {
     if (date instanceof Timestamp) return date.toDate();
     return new Date(date);
   }
+  
+  const getThirdPartyNames = () => {
+    const names = thirdPartyExpenses.map(expense => expense.name);
+    return [...new Set(names)];
+  }
 
   const generateReport = () => {
-    const combinedData: CombinedData[] = [
-      ...transactions.map(t => ({...t, dataType: 'Transação'})),
-      ...fixedExpenses.map(t => ({...t, date: new Date(), dataType: 'Despesa Fixa'})),
-      ...memberExpenses.map(t => ({...t, dataType: 'Despesa de Membro'})),
-      ...thirdPartyExpenses.map(t => ({...t, dataType: 'Despesa de Terceiro'})),
-    ];
+    let combinedData: CombinedData[] = [];
+
+    switch(originFilter) {
+      case 'transactions':
+        combinedData = transactions.map(t => ({...t, dataType: 'Transação'}));
+        break;
+      case 'fixedExpenses':
+        combinedData = fixedExpenses.map(t => ({...t, date: new Date(), dataType: 'Despesa Fixa'}));
+        break;
+      case 'memberExpenses':
+        combinedData = memberExpenses.map(t => ({...t, dataType: 'Despesa de Membro'}));
+        break;
+      case 'thirdPartyExpenses':
+        combinedData = thirdPartyExpenses.map(t => ({...t, dataType: 'Despesa de Terceiro'}));
+        break;
+      default:
+         combinedData = [
+          ...transactions.map(t => ({...t, dataType: 'Transação'})),
+          ...fixedExpenses.map(t => ({...t, date: new Date(), dataType: 'Despesa Fixa'})),
+          ...memberExpenses.map(t => ({...t, dataType: 'Despesa de Membro'})),
+          ...thirdPartyExpenses.map(t => ({...t, dataType: 'Despesa de Terceiro'})),
+        ];
+    }
     
     const filteredData = combinedData.filter(item => {
       let pass = true;
@@ -111,6 +144,12 @@ export function ReportsDashboard() {
         if (!('type' in item) && typeFilter === 'income') pass = false;
       }
       
+      // Person Filter
+      if (personFilter !== 'all') {
+        if (originFilter === 'memberExpenses' && 'memberId' in item && item.memberId !== personFilter) pass = false;
+        if (originFilter === 'thirdPartyExpenses' && 'name' in item && item.name !== personFilter) pass = false;
+      }
+
       // Category Filter
       if (categoryFilter !== 'all' && 'category' in item && item.category !== categoryFilter) {
           pass = false;
@@ -142,14 +181,32 @@ export function ReportsDashboard() {
     doc.text("Relatório Financeiro", 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`Filtros: Tipo(${typeFilter}), Categoria(${categoryFilter}), Período(${dateFilter?.from ? format(dateFilter.from, "dd/MM/yy") : 'N/A'} - ${dateFilter?.to ? format(dateFilter.to, "dd/MM/yy"): 'N/A'})`, 14, 30);
+
+    const filtersApplied = [
+        `Origem: ${originFilter}`,
+        `Tipo: ${typeFilter}`,
+        `Categoria: ${categoryFilter}`,
+        `Período: ${dateFilter?.from ? format(dateFilter.from, "dd/MM/yy") : 'N/A'} - ${dateFilter?.to ? format(dateFilter.to, "dd/MM/yy"): 'N/A'}`
+    ];
+    if (personFilter !== 'all') {
+        filtersApplied.push(`Pessoa: ${personFilter}`);
+    }
+    doc.text(filtersApplied.join(' | '), 14, 30);
 
 
     (doc as any).autoTable({
         startY: 35,
         head: [['Data', 'Descrição', 'Tipo', 'Categoria', 'Valor (R$)']],
         body: filteredData.map(item => {
-            const description = 'description' in item ? item.description : ('name' in item ? item.name : 'N/A');
+            let description = 'N/A';
+            if ('description' in item) {
+                description = item.description;
+            } else if ('name' in item && item.dataType !== 'Despesa de Terceiro') {
+                description = (item as FamilyMemberIncome).name;
+            } else if ('name' in item) {
+                description = `${(item as ThirdPartyExpense).name} - ${item.description}`;
+            }
+
             const type = 'type' in item ? (item.type === 'income' ? 'Receita' : 'Despesa') : 'Despesa';
             const category = 'category' in item ? item.category : 'N/A';
             const amount = item.amount.toFixed(2);
@@ -261,10 +318,25 @@ export function ReportsDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                   <div className="grid gap-2">
+                     <Label htmlFor="origin">Origem</Label>
+                    <Select value={originFilter} onValueChange={setOriginFilter}>
+                      <SelectTrigger id="origin">
+                        <SelectValue placeholder="Selecione uma origem" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="transactions">Transações</SelectItem>
+                        <SelectItem value="fixedExpenses">Despesas Fixas</SelectItem>
+                        <SelectItem value="memberExpenses">Despesas de Membros</SelectItem>
+                        <SelectItem value="thirdPartyExpenses">Despesas de Terceiros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                    <div className="grid gap-2">
                      <Label htmlFor="type">Tipo</Label>
-                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <Select value={typeFilter} onValueChange={setTypeFilter} disabled={originFilter === 'fixedExpenses' || originFilter === 'memberExpenses' || originFilter === 'thirdPartyExpenses'}>
                       <SelectTrigger id="type">
                         <SelectValue placeholder="Selecione um tipo" />
                       </SelectTrigger>
@@ -275,6 +347,25 @@ export function ReportsDashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {(originFilter === 'memberExpenses' || originFilter === 'thirdPartyExpenses') && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="person">Pessoa</Label>
+                      <Select value={personFilter} onValueChange={setPersonFilter}>
+                        <SelectTrigger id="person">
+                          <SelectValue placeholder="Selecione uma pessoa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          {originFilter === 'memberExpenses' && familyMembers.map(member => (
+                            <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>
+                          ))}
+                          {originFilter === 'thirdPartyExpenses' && getThirdPartyNames().map(name => (
+                             <SelectItem key={name} value={name}>{name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="grid gap-2">
                      <Label htmlFor="category">Categoria</Label>
                     <Select value={categoryFilter} onValueChange={setCategoryFilter}>
