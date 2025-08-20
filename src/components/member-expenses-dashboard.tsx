@@ -94,7 +94,7 @@ function getCurrentInstallmentText(expense: MemberExpense): string {
        return `1/${expense.installments}`;
     }
 
-    const currentInstallment = monthsDiff;
+    const currentInstallment = monthsDiff + 1;
 
     if (currentInstallment > expense.installments) {
         return `${expense.installments}/${expense.installments}`;
@@ -342,7 +342,7 @@ export function MemberExpensesDashboard() {
                                 </TableCell>
                                  <TableCell>
                                     {getCurrentInstallmentText(expense)}
-                                </TableCell>
+                                 </TableCell>
                                 <TableCell className="text-right font-medium text-destructive">
                                     {expense.amount.toLocaleString("pt-BR", {
                                         style: "currency",
