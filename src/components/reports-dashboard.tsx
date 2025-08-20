@@ -53,6 +53,9 @@ import { useToast } from "@/hooks/use-toast";
 
 type CombinedData = (Transaction | FixedExpense | MemberExpense | ThirdPartyExpense) & {dataType: string};
 type ReportRow = [string, string, string, string, string];
+type RowStyle = {
+    fillColor?: [number, number, number];
+};
 
 export function ReportsDashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -205,6 +208,8 @@ export function ReportsDashboard() {
 
 
     const tableBody: ReportRow[] = [];
+    const rowStyles: { [key: number]: RowStyle } = {};
+
     filteredData.forEach(item => {
       const isInstallmentExpense = ('installments' in item && item.installments && item.installments > 1 && item.paymentMethod === 'credito');
 
@@ -228,7 +233,15 @@ export function ReportsDashboard() {
              const type = 'Despesa';
              const category = 'category' in expense ? expense.category : 'N/A';
              const date = format(dueDate, 'dd/MM/yyyy');
+             
+             const isPaid = expense.paidInstallments?.includes(i);
+             const currentRowIndex = tableBody.length;
+
              tableBody.push([date, description, type, category, installmentAmount]);
+
+             if (isPaid) {
+                 rowStyles[currentRowIndex] = { fillColor: [232, 248, 239] }; // Light Green
+             }
           }
         }
       } else {
@@ -255,6 +268,11 @@ export function ReportsDashboard() {
         body: tableBody,
         styles: { fontSize: 8 },
         headStyles: { fillColor: [22, 163, 74] },
+        didParseCell: (data: any) => {
+            if (data.section === 'body' && rowStyles[data.row.index]) {
+                data.cell.styles.fillColor = rowStyles[data.row.index].fillColor;
+            }
+        }
     });
 
     doc.save("relatorio-financeiro.pdf");
@@ -475,5 +493,3 @@ export function ReportsDashboard() {
     </SidebarProvider>
   );
 }
-
-    
