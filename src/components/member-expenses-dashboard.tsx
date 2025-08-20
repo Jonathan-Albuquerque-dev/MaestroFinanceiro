@@ -89,15 +89,15 @@ function getCurrentInstallmentText(
   // transforma ano/mês em um índice linear (mês zero-based)
   const monthIndex = (y: number, m: number) => y * 12 + m;
 
-  // Se comprou no dia do fechamento OU depois, a 1ª parcela entra no ciclo do mês seguinte
-  const firstCycleShift = purchaseDate.getDate() >= closingDay ? 1 : 0;
+  // Se comprou APÓS o dia do fechamento, a 1ª parcela entra no ciclo do mês seguinte
+  const firstCycleShift = purchaseDate.getDate() > closingDay ? 1 : 0;
   const firstCycleIndex = monthIndex(
     purchaseDate.getFullYear(),
     purchaseDate.getMonth() + firstCycleShift
   );
 
   // Se ainda não chegou no fechamento deste mês, o ciclo "corrente" ainda é o do mês anterior
-  const currentCycleShift = currentDate.getDate() < closingDay ? -1 : 0;
+  const currentCycleShift = currentDate.getDate() <= closingDay ? -1 : 0;
   const currentCycleIndex = monthIndex(
     currentDate.getFullYear(),
     currentDate.getMonth() + currentCycleShift
