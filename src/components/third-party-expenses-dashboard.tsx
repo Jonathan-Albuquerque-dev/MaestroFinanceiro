@@ -14,7 +14,6 @@ import {
   Banknote,
   Landmark,
   Wallet,
-  Eye,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -51,7 +50,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddEditThirdPartyExpenseDialog } from "./add-edit-third-party-expense-dialog";
-import { ViewInstallmentsDialog } from "./view-installments-dialog";
 import type { ThirdPartyExpense, CreditCard as CreditCardType } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -85,7 +83,6 @@ export function ThirdPartyExpensesDashboard() {
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
-  const [isViewInstallmentsOpen, setViewInstallmentsOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<ThirdPartyExpense | undefined>(undefined);
   const { toast } = useToast();
 
@@ -125,7 +122,7 @@ export function ThirdPartyExpensesDashboard() {
           description: "Despesa de terceiro atualizada com sucesso.",
         });
       } else {
-        await addDoc(collection(db, "thirdPartyExpenses"), {...expense, paidInstallments: []});
+        await addDoc(collection(db, "thirdPartyExpenses"), expense);
         toast({
           title: "Sucesso!",
           description: "Despesa de terceiro adicionada com sucesso.",
@@ -140,20 +137,6 @@ export function ThirdPartyExpensesDashboard() {
       });
     }
   };
-
-  const handleUpdateInstallments = async (expenseId: string, paidInstallments: number[]) => {
-      try {
-        const docRef = doc(db, "thirdPartyExpenses", expenseId);
-        await updateDoc(docRef, { paidInstallments });
-      } catch (error) {
-         console.error("Erro ao atualizar parcelas: ", error);
-         toast({
-            variant: "destructive",
-            title: "Erro!",
-            description: "Não foi possível atualizar o status da parcela.",
-        });
-      }
-  }
 
   const handleDelete = async (expenseId: string) => {
     try {
@@ -180,11 +163,6 @@ export function ThirdPartyExpensesDashboard() {
   const openEditDialog = (expense: ThirdPartyExpense) => {
     setSelectedExpense(expense);
     setAddEditDialogOpen(true);
-  }
-  
-  const openViewInstallmentsDialog = (expense: ThirdPartyExpense) => {
-      setSelectedExpense(expense);
-      setViewInstallmentsOpen(true);
   }
   
   const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -299,7 +277,6 @@ export function ThirdPartyExpensesDashboard() {
                             <TableHead>Descrição</TableHead>
                              <TableHead>Data</TableHead>
                             <TableHead>Pagamento</TableHead>
-                            <TableHead>Parcelas</TableHead>
                             <TableHead className="text-right">Valor</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
@@ -318,16 +295,6 @@ export function ThirdPartyExpensesDashboard() {
                                       {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
                                     </Badge>
                                   )}
-                                </TableCell>
-                                <TableCell>
-                                    {expense.installments && expense.installments > 1 ? (
-                                        <div className="flex items-center gap-2">
-                                            <span>{`${expense.paidInstallments?.length || 0}/${expense.installments}`}</span>
-                                            <Button variant="outline" size="sm" onClick={() => openViewInstallmentsDialog(expense)}>
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    ) : 'N/A'}
                                 </TableCell>
                                 <TableCell className="text-right font-medium text-accent">
                                     {expense.amount.toLocaleString("pt-BR", {
@@ -371,14 +338,6 @@ export function ThirdPartyExpensesDashboard() {
         expense={selectedExpense}
         creditCards={creditCards}
       />
-       {selectedExpense && (
-        <ViewInstallmentsDialog
-            open={isViewInstallmentsOpen}
-            onOpenChange={setViewInstallmentsOpen}
-            expense={selectedExpense}
-            onUpdateInstallments={handleUpdateInstallments}
-        />
-       )}
     </SidebarProvider>
   );
 }

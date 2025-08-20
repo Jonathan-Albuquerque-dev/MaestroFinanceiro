@@ -79,40 +79,6 @@ function formatDate(date: string | Timestamp) {
   return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
 }
 
-function getCurrentInstallmentText(
-  purchaseDate: Date,
-  currentDate: Date,
-  totalInstallments: number,
-  closingDayInput: number | string
-) {
-  const closingDay = Number(closingDayInput);
-
-  const pY = purchaseDate.getUTCFullYear();
-  const pM = purchaseDate.getUTCMonth();
-  const pD = purchaseDate.getUTCDate();
-
-  const cY = currentDate.getUTCFullYear();
-  const cM = currentDate.getUTCMonth();
-  const cD = currentDate.getUTCDate();
-
-  const monthIndex = (y: number, m: number) => y * 12 + m;
-
-  // Compra APÓS o fechamento => 1º ciclo é o mês seguinte
-  const firstCycleShift = pD > closingDay ? 1 : 0;
-  const firstCycleIndex  = monthIndex(pY, pM + firstCycleShift);
-
-  // Antes do fechamento do mês atual => ainda estamos no ciclo anterior
-  const currentCycleShift = cD < closingDay ? -1 : 0;
-  const currentCycleIndex = monthIndex(cY, cM + currentCycleShift);
-
-  let monthsElapsed  = currentCycleIndex - firstCycleIndex;
-  let rawInstallment = monthsElapsed + 1;
-
-  const installment = Math.max(1, Math.min(rawInstallment, totalInstallments));
-  return `${installment}/${totalInstallments}`;
-}
-
-
 export function MemberExpensesDashboard() {
   const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberIncome[]>([]);
@@ -334,7 +300,6 @@ export function MemberExpensesDashboard() {
                       <TableHead>Data</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Pagamento</TableHead>
-                      <TableHead>Parcelas</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -342,8 +307,6 @@ export function MemberExpensesDashboard() {
                   <TableBody>
                     {memberExpenses.map((expense) => {
                       const card = creditCards.find((c) => c.id === expense.creditCardId);
-                      const showInstallments =
-                        expense.paymentMethod === "credito" && expense.installments && card;
                       return (
                         <TableRow key={expense.id}>
                           <TableCell className="font-medium">
@@ -362,18 +325,6 @@ export function MemberExpensesDashboard() {
                                   ` (${creditCards.find((c) => c.id === expense.creditCardId)?.name})`}
                               </Badge>
                             )}
-                          </TableCell>
-                          <TableCell>
-                           {showInstallments
-                              ? getCurrentInstallmentText(
-                                  expense.date instanceof Timestamp
-                                    ? expense.date.toDate()
-                                    : new Date(expense.date),
-                                  new Date(),
-                                  expense.installments!,
-                                  Number(card!.closingDate)
-                                )
-                              : "N/A"}
                           </TableCell>
                           <TableCell className="text-right font-medium text-destructive">
                             {expense.amount.toLocaleString("pt-BR", {

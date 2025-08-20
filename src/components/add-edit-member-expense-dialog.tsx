@@ -51,7 +51,6 @@ const formSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."),
   paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]),
   creditCardId: z.string().optional(),
-  installments: z.coerce.number().int().min(1).optional(),
 }).refine(data => {
     if (data.paymentMethod === 'credito' && !data.creditCardId) {
         return false;
@@ -66,7 +65,7 @@ const formSchema = z.object({
 type AddEditMemberExpenseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (expense: Omit<MemberExpense, "id" | "paidInstallments"> | MemberExpense) => void;
+  onSave: (expense: Omit<MemberExpense, "id"> | MemberExpense) => void;
   expense?: MemberExpense;
   creditCards: CreditCard[];
   familyMembers: FamilyMemberIncome[];
@@ -87,7 +86,6 @@ export function AddEditMemberExpenseDialog({
       amount: 0,
       date: new Date(),
       paymentMethod: "dinheiro",
-      installments: 1,
     },
   });
 
@@ -111,7 +109,6 @@ export function AddEditMemberExpenseDialog({
         date: new Date(),
         category: "",
         paymentMethod: "dinheiro",
-        installments: 1,
         creditCardId: undefined,
       });
     }
@@ -123,7 +120,7 @@ export function AddEditMemberExpenseDialog({
     if (expense) {
       onSave({ ...expense, ...dataToSave });
     } else {
-      onSave({...dataToSave, paidInstallments: []});
+      onSave(dataToSave);
     }
     onOpenChange(false);
     form.reset();
@@ -298,19 +295,6 @@ export function AddEditMemberExpenseDialog({
                                 ))}
                                 </SelectContent>
                             </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                      <FormField
-                        control={form.control}
-                        name="installments"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Parcelas</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="1" {...field} />
-                            </FormControl>
                             <FormMessage />
                             </FormItem>
                         )}

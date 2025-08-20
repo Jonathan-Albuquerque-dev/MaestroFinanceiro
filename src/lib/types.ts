@@ -9,7 +9,6 @@ export type Transaction = {
   date: string | Timestamp;
   paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
   creditCardId?: string;
-  installments?: number;
 };
 
 export type FamilyMemberIncome = {
@@ -33,8 +32,6 @@ export type ThirdPartyExpense = {
   date: string | Timestamp;
   paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
   creditCardId?: string;
-  installments?: number;
-  paidInstallments?: number[];
 };
 
 export type MemberExpense = {
@@ -46,8 +43,6 @@ export type MemberExpense = {
   category: string;
   paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
   creditCardId?: string;
-  installments?: number;
-  paidInstallments?: number[];
 }
 
 export type CreditCard = {

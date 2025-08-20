@@ -71,26 +71,17 @@ function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], th
 
     allExpenses.forEach(expense => {
         const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
-        const installments = expense.installments || 1;
-        const installmentAmount = expense.amount / installments;
-        
-        for (let i = 0; i < installments; i++) {
-            const currentInstallmentDate = addMonths(expenseDate, i);
-            
-            // Determine which invoice this installment belongs to
-            const expenseClosingDateThisMonth = set(currentInstallmentDate, { date: card.closingDate });
+        const expenseClosingDateThisMonth = set(expenseDate, { date: card.closingDate });
 
-            let installmentInvoiceEndDate;
-            if(isAfter(currentInstallmentDate, expenseClosingDateThisMonth)){
-                installmentInvoiceEndDate = addMonths(expenseClosingDateThisMonth, 1);
-            } else {
-                installmentInvoiceEndDate = expenseClosingDateThisMonth;
-            }
+        let installmentInvoiceEndDate;
+        if(isAfter(expenseDate, expenseClosingDateThisMonth)){
+            installmentInvoiceEndDate = addMonths(expenseClosingDateThisMonth, 1);
+        } else {
+            installmentInvoiceEndDate = expenseClosingDateThisMonth;
+        }
 
-            // Check if the installment's invoice period matches the current invoice period
-            if (getYear(installmentInvoiceEndDate) === getYear(invoiceEndDate) && getMonth(installmentInvoiceEndDate) === getMonth(invoiceEndDate)) {
-                 invoiceTotal += installmentAmount;
-            }
+        if (getYear(installmentInvoiceEndDate) === getYear(invoiceEndDate) && getMonth(installmentInvoiceEndDate) === getMonth(invoiceEndDate)) {
+              invoiceTotal += expense.amount;
         }
     });
 
@@ -183,70 +174,13 @@ export function CreditCardsDashboard() {
     }
   }
 
-  const handleMarkAsPaid = async (card: CreditCardType) => {
-    try {
-        const now = new Date();
-        const today = now.getDate();
-        let invoiceEndDate: Date;
-        if (today <= card.closingDate) {
-            invoiceEndDate = set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
-        } else {
-            invoiceEndDate = addMonths(set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 }), 1);
-        }
-
-        const expensesToUpdate: { expense: MemberExpense, installmentNumber: number }[] = [];
-
-        memberExpenses
-            .filter(expense => expense.paymentMethod === 'credito' && expense.creditCardId === card.id)
-            .forEach(expense => {
-                const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
-                const installments = expense.installments || 1;
-
-                for (let i = 0; i < installments; i++) {
-                    const installmentNumber = i + 1;
-                    const currentInstallmentDate = addMonths(expenseDate, i);
-                    const expenseClosingDateThisMonth = set(currentInstallmentDate, { date: card.closingDate });
-
-                    let installmentInvoiceEndDate;
-                    if (isAfter(currentInstallmentDate, expenseClosingDateThisMonth)) {
-                        installmentInvoiceEndDate = addMonths(expenseClosingDateThisMonth, 1);
-                    } else {
-                        installmentInvoiceEndDate = expenseClosingDateThisMonth;
-                    }
-
-                    if (getYear(installmentInvoiceEndDate) === getYear(invoiceEndDate) && getMonth(installmentInvoiceEndDate) === getMonth(invoiceEndDate)) {
-                        if (!expense.paidInstallments?.includes(installmentNumber)) {
-                            expensesToUpdate.push({ expense, installmentNumber });
-                        }
-                    }
-                }
-            });
-
-        if (expensesToUpdate.length > 0) {
-            const batch = writeBatch(db);
-            expensesToUpdate.forEach(({ expense, installmentNumber }) => {
-                const docRef = doc(db, "memberExpenses", expense.id);
-                const newPaidInstallments = [...(expense.paidInstallments || []), installmentNumber];
-                batch.update(docRef, { paidInstallments: newPaidInstallments });
-            });
-            await batch.commit();
-        }
-
-        setPaidInvoices(prev => ({ ...prev, [card.id]: true }));
-        toast({
-            title: "Fatura Paga!",
-            description: "A fatura deste cartão foi marcada como paga e as parcelas das despesas dos membros foram atualizadas.",
-        });
-
-    } catch (error) {
-        console.error("Erro ao marcar fatura como paga: ", error);
-        toast({
-            variant: "destructive",
-            title: "Erro!",
-            description: "Não foi possível processar o pagamento da fatura.",
-        });
-    }
-}
+  const handleMarkAsPaid = async (cardId: string) => {
+    setPaidInvoices(prev => ({ ...prev, [cardId]: true }));
+    toast({
+        title: "Fatura Paga!",
+        description: "A fatura deste cartão foi marcada como paga.",
+    });
+  }
 
   const openAddDialog = () => {
     setSelectedCard(undefined);
@@ -383,7 +317,7 @@ export function CreditCardsDashboard() {
                             </p>
                         </CardContent>
                         <div className="p-6 pt-0">
-                            <Button className="w-full" onClick={() => handleMarkAsPaid(card)} disabled={isPaid}>
+                            <Button className="w-full" onClick={() => handleMarkAsPaid(card.id)} disabled={isPaid}>
                                 {isPaid ? <CheckCircle className="mr-2 h-4 w-4" /> : null}
                                 {isPaid ? 'Fatura Paga' : 'Marcar como Paga'}
                             </Button>

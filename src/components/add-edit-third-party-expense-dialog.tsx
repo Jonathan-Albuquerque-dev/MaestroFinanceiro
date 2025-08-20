@@ -49,7 +49,6 @@ const formSchema = z.object({
   date: z.date({ required_error: "Data é obrigatória." }),
   paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]),
   creditCardId: z.string().optional(),
-  installments: z.coerce.number().int().min(1).optional(),
 }).refine(data => {
     if (data.paymentMethod === 'credito' && !data.creditCardId) {
         return false;
@@ -84,7 +83,6 @@ export function AddEditThirdPartyExpenseDialog({
       amount: 0,
       date: new Date(),
       paymentMethod: "dinheiro",
-      installments: 1,
     },
   });
 
@@ -107,7 +105,6 @@ export function AddEditThirdPartyExpenseDialog({
         amount: 0,
         date: new Date(),
         paymentMethod: "dinheiro",
-        installments: 1,
         creditCardId: undefined,
       });
     }
@@ -259,19 +256,6 @@ export function AddEditThirdPartyExpenseDialog({
                                 ))}
                                 </SelectContent>
                             </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                      <FormField
-                        control={form.control}
-                        name="installments"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Parcelas</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="1" {...field} />
-                            </FormControl>
                             <FormMessage />
                             </FormItem>
                         )}

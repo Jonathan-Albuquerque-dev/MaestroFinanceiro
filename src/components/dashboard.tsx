@@ -34,21 +34,12 @@ import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, 
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
-function getCurrentMonthInstallmentValue(expense: MemberExpense | ThirdPartyExpense, today: Date): number {
+function getCurrentMonthExpenseValue(expense: MemberExpense | ThirdPartyExpense, today: Date): number {
     const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
-    const installments = expense.installments || 1;
-    const installmentAmount = expense.amount / installments;
-    let currentMonthAmount = 0;
-
-    for (let i = 0; i < installments; i++) {
-        const installmentDate = addMonths(expenseDate, i);
-        if (isSameMonth(installmentDate, today) && isSameYear(installmentDate, today)) {
-            currentMonthAmount = installmentAmount;
-            // Found the installment for this month for this expense, no need to check further for this expense.
-            break; 
-        }
+    if (isSameMonth(expenseDate, today) && isSameYear(expenseDate, today)) {
+        return expense.amount;
     }
-    return currentMonthAmount;
+    return 0;
 }
 
 
@@ -174,8 +165,8 @@ export function Dashboard() {
   const totalExpense = totalVariableExpense + totalFixedExpense;
 
   const today = new Date();
-  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallmentValue(expense, today), 0);
-  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getCurrentMonthInstallmentValue(expense, today), 0);
+  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + getCurrentMonthExpenseValue(expense, today), 0);
+  const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + getCurrentMonthExpenseValue(expense, today), 0);
 
   const balance = totalIncome - totalExpense;
 

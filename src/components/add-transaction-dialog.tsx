@@ -50,7 +50,6 @@ const formSchema = z.object({
   date: z.date({ required_error: "Data é obrigatória." }),
   paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]).optional(),
   creditCardId: z.string().optional(),
-  installments: z.coerce.number().int().min(1).optional(),
 }).refine(data => {
     if (data.type === 'expense' && !data.paymentMethod) {
         return false;
@@ -91,7 +90,6 @@ export function AddTransactionDialog({
       description: "",
       amount: 0,
       date: new Date(),
-      installments: 1,
     },
   });
 
@@ -113,7 +111,6 @@ export function AddTransactionDialog({
         description: "",
         amount: 0,
         date: new Date(),
-        installments: 1,
         category: "",
         paymentMethod: undefined,
         creditCardId: undefined,
@@ -139,7 +136,6 @@ export function AddTransactionDialog({
                         field.onChange(value);
                         form.setValue("paymentMethod", undefined);
                         form.setValue("creditCardId", undefined);
-                        form.setValue("installments", 1);
                     }}
                     defaultValue={field.value}
                   >
@@ -254,19 +250,6 @@ export function AddTransactionDialog({
                                         ))}
                                         </SelectContent>
                                     </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="installments"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Parcelas</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="1" {...field} />
-                                    </FormControl>
                                     <FormMessage />
                                     </FormItem>
                                 )}
