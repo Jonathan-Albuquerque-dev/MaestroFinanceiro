@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -55,7 +56,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { format, differenceInMonths, getYear, getMonth } from 'date-fns';
+import { format, getYear, getMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
