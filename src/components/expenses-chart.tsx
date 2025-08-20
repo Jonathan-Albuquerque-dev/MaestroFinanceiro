@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import type { Transaction } from "@/lib/types";
+import type { Transaction, FixedExpense } from "@/lib/types";
 
 const chartColors = [
   "hsl(var(--chart-1))",
@@ -27,7 +27,7 @@ const chartColors = [
   "hsl(330, 58%, 55%)",
 ];
 
-export function ExpensesChart({ transactions }: { transactions: Transaction[] }) {
+export function ExpensesChart({ transactions, fixedExpenses }: { transactions: Transaction[], fixedExpenses: FixedExpense[] }) {
   const expenseData = React.useMemo(() => {
     const categoryTotals = transactions
       .filter((t) => t.type === "expense")
@@ -39,12 +39,19 @@ export function ExpensesChart({ transactions }: { transactions: Transaction[] })
         return acc;
       }, {} as Record<string, number>);
 
+    fixedExpenses.forEach(expense => {
+      if (!categoryTotals[expense.category]) {
+        categoryTotals[expense.category] = 0;
+      }
+      categoryTotals[expense.category] += expense.amount;
+    });
+
     return Object.entries(categoryTotals).map(([name, value], index) => ({
       name,
       value,
       fill: chartColors[index % chartColors.length],
     }));
-  }, [transactions]);
+  }, [transactions, fixedExpenses]);
   
   const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);
 

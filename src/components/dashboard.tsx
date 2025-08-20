@@ -28,12 +28,13 @@ import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
 
-import type { Transaction } from "@/lib/types";
+import type { Transaction, FixedExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
 export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -45,6 +46,19 @@ export function Dashboard() {
         transactionsData.push({ id: doc.id, ...doc.data() } as Transaction);
       });
       setTransactions(transactionsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, "fixedExpenses"), orderBy("description"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const expensesData: FixedExpense[] = [];
+      querySnapshot.forEach((doc) => {
+        expensesData.push({ id: doc.id, ...doc.data() } as FixedExpense);
+      });
+      setFixedExpenses(expensesData);
     });
 
     return () => unsubscribe();
@@ -71,9 +85,13 @@ export function Dashboard() {
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
   
-  const totalExpense = transactions
+  const totalVariableExpense = transactions
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
+    
+  const totalFixedExpense = fixedExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const totalExpense = totalVariableExpense + totalFixedExpense;
 
   const balance = totalIncome - totalExpense;
 
@@ -142,7 +160,7 @@ export function Dashboard() {
                         <FlowChart transactions={transactions} />
                     </div>
                     <div className="lg:col-span-3">
-                        <ExpensesChart transactions={transactions} />
+                        <ExpensesChart transactions={transactions} fixedExpenses={fixedExpenses} />
                     </div>
                 </div>
                 <div className="grid gap-8 mt-8">
