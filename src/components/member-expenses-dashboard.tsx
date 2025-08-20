@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -64,54 +63,55 @@ const paymentMethodIcons = {
   pix: <Landmark className="h-4 w-4" />,
   debito: <Banknote className="h-4 w-4" />,
   credito: <CreditCardIcon className="h-4 w-4" />,
-}
+};
 
 const paymentMethodLabels = {
-    dinheiro: "Dinheiro",
-    pix: "Pix",
-    debito: "Débito",
-    credito: "Crédito"
-}
+  dinheiro: "Dinheiro",
+  pix: "Pix",
+  debito: "Débito",
+  credito: "Crédito",
+};
 
 function formatDate(date: string | Timestamp) {
-    if (typeof date === 'string') {
-        return format(new Date(date), "dd/MM/yyyy", { locale: ptBR })
-    }
-    return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
+  if (typeof date === "string") {
+    return format(new Date(date), "dd/MM/yyyy", { locale: ptBR });
+  }
+  return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
 }
 
 function getCurrentInstallmentText(
   purchaseDate: Date,
   currentDate: Date,
   totalInstallments: number,
-  closingDay: number
+  closingDayInput: number | string
 ) {
-  // transforma ano/mês em um índice linear (mês zero-based)
+  // trabalhar sempre com UTC para não “voltar” um dia no fuso -03
+  const closingDay = Number(closingDayInput);
+
+  const pY = purchaseDate.getUTCFullYear();
+  const pM = purchaseDate.getUTCMonth();     // 0..11
+  const pD = purchaseDate.getUTCDate();      // 1..31
+
+  const cY = currentDate.getUTCFullYear();
+  const cM = currentDate.getUTCMonth();
+  const cD = currentDate.getUTCDate();
+
   const monthIndex = (y: number, m: number) => y * 12 + m;
 
-  // Se comprou NO DIA do fechamento ou depois → 1ª parcela é no ciclo seguinte
-  const firstCycleShift = purchaseDate.getDate() >= closingDay ? 1 : 0;
-  const firstCycleIndex = monthIndex(
-    purchaseDate.getFullYear(),
-    purchaseDate.getMonth() + firstCycleShift
-  );
+  // Compra no DIA do fechamento ou depois => 1º ciclo é o mês seguinte
+  const firstCycleShift = pD >= closingDay ? 1 : 0;
+  const firstCycleIndex  = monthIndex(pY, pM + firstCycleShift);
 
-  // Se ainda não chegou no fechamento deste mês → ciclo ainda é do mês anterior
-  const currentCycleShift = currentDate.getDate() < closingDay ? -1 : 0;
-  const currentCycleIndex = monthIndex(
-    currentDate.getFullYear(),
-    currentDate.getMonth() + currentCycleShift
-  );
+  // Antes do fechamento do mês atual => ainda estamos no ciclo anterior
+  const currentCycleShift = cD < closingDay ? -1 : 0;
+  const currentCycleIndex = monthIndex(cY, cM + currentCycleShift);
 
-  const monthsElapsed = currentCycleIndex - firstCycleIndex;
-  const rawInstallment = monthsElapsed + 1;
-
-  // Garante que nunca seja menor que 1 nem maior que o total
-  const installment = Math.max(1, Math.min(rawInstallment, totalInstallments));
+  const monthsElapsed   = currentCycleIndex - firstCycleIndex;
+  const rawInstallment  = monthsElapsed + 1;
+  const installment     = Math.max(1, Math.min(rawInstallment, totalInstallments));
 
   return `${installment}/${totalInstallments}`;
 }
-
 
 export function MemberExpensesDashboard() {
   const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
@@ -130,7 +130,6 @@ export function MemberExpensesDashboard() {
       });
       setMemberExpenses(expensesData);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -155,7 +154,6 @@ export function MemberExpensesDashboard() {
       });
       setCreditCards(cardsData);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -176,8 +174,8 @@ export function MemberExpensesDashboard() {
         });
       }
     } catch (error) {
-       console.error("Erro ao salvar despesa do membro: ", error);
-       toast({
+      console.error("Erro ao salvar despesa do membro: ", error);
+      toast({
         variant: "destructive",
         title: "Erro!",
         description: "Não foi possível salvar a despesa.",
@@ -200,32 +198,32 @@ export function MemberExpensesDashboard() {
         description: "Não foi possível excluir a despesa.",
       });
     }
-  }
+  };
 
   const openAddDialog = () => {
     setSelectedExpense(undefined);
     setAddEditDialogOpen(true);
-  }
+  };
 
   const openEditDialog = (expense: MemberExpense) => {
     setSelectedExpense(expense);
     setAddEditDialogOpen(true);
-  }
-  
+  };
+
   const totalMemberExpenses = memberExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   const getMemberName = (memberId: string) => {
-      return familyMembers.find(m => m.id === memberId)?.name || 'Desconhecido';
-  }
+    return familyMembers.find((m) => m.id === memberId)?.name || "Desconhecido";
+  };
 
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
-             <div className="p-2 rounded-lg bg-primary">
+            <div className="p-2 rounded-lg bg-primary">
               <DollarSign className="w-6 h-6 text-primary-foreground" />
-             </div>
+            </div>
             <h1 className="text-xl font-bold font-headline">Maestro Financeiro</h1>
           </div>
         </SidebarHeader>
@@ -247,7 +245,7 @@ export function MemberExpensesDashboard() {
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+            <SidebarMenuItem>
               <NextLink href="/member-expenses" passHref>
                 <SidebarMenuButton isActive>
                   <Users />
@@ -255,7 +253,7 @@ export function MemberExpensesDashboard() {
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+            <SidebarMenuItem>
               <NextLink href="/fixed-expenses" passHref>
                 <SidebarMenuButton>
                   <Repeat />
@@ -284,120 +282,136 @@ export function MemberExpensesDashboard() {
       </Sidebar>
       <SidebarInset>
         <div className="flex-1 p-4 md:p-8 space-y-8">
-            <header className="flex items-center justify-between space-y-2">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">Despesas dos Membros</h2>
-                    <p className="text-muted-foreground">Gerencie os gastos dos membros da sua família.</p>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <Button onClick={openAddDialog}>
-                    <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Despesa
-                  </Button>
-                   <Avatar>
-                    <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                </div>
-            </header>
+          <header className="flex items-center justify-between space-y-2">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight font-headline">
+                Despesas dos Membros
+              </h2>
+              <p className="text-muted-foreground">
+                Gerencie os gastos dos membros da sua família.
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button onClick={openAddDialog}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Despesa
+              </Button>
+              <Avatar>
+                <AvatarImage src="https://placehold.co/40x40" data-ai-hint="user avatar" />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+            </div>
+          </header>
 
-            <main className="space-y-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Total de Despesas dos Membros</CardTitle>
-                        <CardDescription>A soma de todos os gastos dos membros da família.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-3xl font-bold text-destructive">
-                           {totalMemberExpenses.toLocaleString("pt-BR", {
+          <main className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Total de Despesas dos Membros</CardTitle>
+                <CardDescription>
+                  A soma de todos os gastos dos membros da família.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-destructive">
+                  {totalMemberExpenses.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Lista de Despesas</CardTitle>
+                <CardDescription>Despesas dos membros cadastradas.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Membro</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Pagamento</TableHead>
+                      <TableHead>Parcelas</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {memberExpenses.map((expense) => {
+                      const card = creditCards.find((c) => c.id === expense.creditCardId);
+                      const showInstallments =
+                        expense.paymentMethod === "credito" && expense.installments && card;
+                      return (
+                        <TableRow key={expense.id}>
+                          <TableCell className="font-medium">
+                            {getMemberName(expense.memberId)}
+                          </TableCell>
+                          <TableCell>{expense.description}</TableCell>
+                          <TableCell>{formatDate(expense.date)}</TableCell>
+                          <TableCell>{expense.category}</TableCell>
+                          <TableCell>
+                            {expense.paymentMethod && (
+                              <Badge variant="outline" className="flex items-center gap-1.5">
+                                {paymentMethodIcons[expense.paymentMethod]}
+                                {paymentMethodLabels[expense.paymentMethod]}
+                                {expense.paymentMethod === "credito" &&
+                                  expense.creditCardId &&
+                                  ` (${creditCards.find((c) => c.id === expense.creditCardId)?.name})`}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                           {showInstallments
+                              ? getCurrentInstallmentText(
+                                  expense.date instanceof Timestamp
+                                    ? expense.date.toDate()
+                                    : new Date(expense.date),
+                                  new Date(),
+                                  expense.installments!,
+                                  Number(card!.closingDate)
+                                )
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-destructive">
+                            {expense.amount.toLocaleString("pt-BR", {
                               style: "currency",
                               currency: "BRL",
                             })}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Lista de Despesas</CardTitle>
-                        <CardDescription>Despesas dos membros cadastradas.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Membro</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead>Pagamento</TableHead>
-                            <TableHead>Parcelas</TableHead>
-                            <TableHead className="text-right">Valor</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {memberExpenses.map((expense) => {
-                              const card = creditCards.find(c => c.id === expense.creditCardId);
-                              const showInstallments = expense.paymentMethod === 'credito' && expense.installments && card;
-                              return (
-                                <TableRow key={expense.id}>
-                                    <TableCell className="font-medium">{getMemberName(expense.memberId)}</TableCell>
-                                    <TableCell>{expense.description}</TableCell>
-                                    <TableCell>{formatDate(expense.date)}</TableCell>
-                                    <TableCell>{expense.category}</TableCell>
-                                    <TableCell>
-                                      {expense.paymentMethod && (
-                                        <Badge variant="outline" className="flex items-center gap-1.5">
-                                          {paymentMethodIcons[expense.paymentMethod]}
-                                          {paymentMethodLabels[expense.paymentMethod]}
-                                          {expense.paymentMethod === 'credito' && expense.creditCardId && ` (${creditCards.find(c => c.id === expense.creditCardId)?.name})`}
-                                        </Badge>
-                                      )}
-                                    </TableCell>
-                                     <TableCell>
-                                        {showInstallments ? 
-                                          getCurrentInstallmentText(
-                                            expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date),
-                                            new Date(),
-                                            expense.installments!,
-                                            card!.closingDate
-                                          ) 
-                                          : 'N/A'
-                                        }
-                                     </TableCell>
-                                    <TableCell className="text-right font-medium text-destructive">
-                                        {expense.amount.toLocaleString("pt-BR", {
-                                            style: "currency",
-                                            currency: "BRL",
-                                        })}
-                                    </TableCell>
-                                    <TableCell>
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Abrir menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                          <DropdownMenuItem onClick={() => openEditDialog(expense)}>
-                                            <Pencil className="mr-2 h-4 w-4" />
-                                            Editar
-                                          </DropdownMenuItem>
-                                          <DropdownMenuItem onClick={() => handleDelete(expense.id)} className="text-destructive">
-                                             <Trash2 className="mr-2 h-4 w-4" />
-                                            Excluir
-                                          </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
-                                    </TableCell>
-                                </TableRow>
-                              )
-                            })}
-                        </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            </main>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditDialog(expense)}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(expense.id)}
+                                  className="text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </main>
         </div>
       </SidebarInset>
       <AddEditMemberExpenseDialog
