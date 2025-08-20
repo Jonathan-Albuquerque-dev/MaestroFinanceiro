@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  CheckCircle,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -28,17 +29,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,28 +40,77 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddEditCreditCardDialog } from "./add-edit-credit-card-dialog";
-import type { CreditCard as CreditCardType } from "@/lib/types";
-import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import type { CreditCard as CreditCardType, Transaction, ThirdPartyExpense } from "@/lib/types";
+import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { getMonth, getYear, set, getDate, isAfter, isBefore, subMonths, addMonths } from "date-fns";
+
+function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], thirdPartyExpenses: ThirdPartyExpense[]): number {
+    const now = new Date();
+    const currentYear = getYear(now);
+    const currentMonth = getMonth(now);
+    const closingDay = card.closingDate;
+
+    let closingDateOfThisMonth = set(now, { year: currentYear, month: currentMonth, date: closingDay });
+    let closingDateOfLastMonth: Date;
+
+    if (isAfter(now, closingDateOfThisMonth)) {
+        closingDateOfLastMonth = closingDateOfThisMonth;
+        closingDateOfThisMonth = addMonths(closingDateOfLastMonth, 1);
+    } else {
+        closingDateOfLastMonth = subMonths(closingDateOfThisMonth, 1);
+    }
+
+    const allExpenses = [
+        ...transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credito' && t.creditCardId === card.id),
+        ...thirdPartyExpenses.filter(t => t.paymentMethod === 'credito' && t.creditCardId === card.id)
+    ];
+
+    const invoiceTotal = allExpenses.reduce((total, expense) => {
+        const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
+        if (isAfter(expenseDate, closingDateOfLastMonth) && isBefore(expenseDate, closingDateOfThisMonth)) {
+            return total + expense.amount;
+        }
+        return total;
+    }, 0);
+
+    return invoiceTotal;
+}
 
 export function CreditCardsDashboard() {
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<CreditCardType | undefined>(undefined);
+  const [paidInvoices, setPaidInvoices] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "creditCards"), orderBy("name"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const cardsData: CreditCardType[] = [];
-      querySnapshot.forEach((doc) => {
-        cardsData.push({ id: doc.id, ...doc.data() } as CreditCardType);
-      });
+    const qCards = query(collection(db, "creditCards"), orderBy("name"));
+    const unsubCards = onSnapshot(qCards, (snapshot) => {
+      const cardsData: CreditCardType[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CreditCardType));
       setCreditCards(cardsData);
     });
 
-    return () => unsubscribe();
+    const qTransactions = query(collection(db, "transactions"), orderBy("date", "desc"));
+    const unsubTransactions = onSnapshot(qTransactions, (snapshot) => {
+        const transactionsData: Transaction[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+        setTransactions(transactionsData);
+    });
+    
+    const qThirdParty = query(collection(db, "thirdPartyExpenses"), orderBy("date", "desc"));
+    const unsubThirdParty = onSnapshot(qThirdParty, (snapshot) => {
+        const expensesData: ThirdPartyExpense[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ThirdPartyExpense));
+        setThirdPartyExpenses(expensesData);
+    });
+
+    return () => {
+        unsubCards();
+        unsubTransactions();
+        unsubThirdParty();
+    };
   }, []);
 
   const handleAddOrUpdate = async (card: Omit<CreditCardType, "id"> | CreditCardType) => {
@@ -111,6 +154,14 @@ export function CreditCardsDashboard() {
         description: "Não foi possível excluir o cartão.",
       });
     }
+  }
+
+  const handleMarkAsPaid = (cardId: string) => {
+    setPaidInvoices(prev => ({ ...prev, [cardId]: true }));
+     toast({
+        title: "Fatura Paga!",
+        description: "A fatura deste cartão foi marcada como paga.",
+      });
   }
 
   const openAddDialog = () => {
@@ -183,8 +234,8 @@ export function CreditCardsDashboard() {
         <div className="flex-1 p-4 md:p-8 space-y-8">
             <header className="flex items-center justify-between space-y-2">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">Cartões de Crédito</h2>
-                    <p className="text-muted-foreground">Gerencie seus cartões de crédito.</p>
+                    <h2 className="text-3xl font-bold tracking-tight font-headline">Faturas dos Cartões</h2>
+                    <p className="text-muted-foreground">Gerencie as faturas dos seus cartões de crédito.</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <Button onClick={openAddDialog}>
@@ -197,53 +248,57 @@ export function CreditCardsDashboard() {
                 </div>
             </header>
 
-            <main className="space-y-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Seus Cartões</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                        <TableHeader>
-                            <TableRow>
-                            <TableHead>Nome do Cartão</TableHead>
-                            <TableHead>Data de Fechamento</TableHead>
-                            <TableHead>Data de Vencimento</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {creditCards.map((card) => (
-                            <TableRow key={card.id}>
-                                <TableCell className="font-medium">{card.name}</TableCell>
-                                <TableCell>Dia {card.closingDate}</TableCell>
-                                <TableCell>Dia {card.dueDate}</TableCell>
-                                <TableCell>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" className="h-8 w-8 p-0">
-                                        <span className="sr-only">Abrir menu</span>
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => openEditDialog(card)}>
-                                        <Pencil className="mr-2 h-4 w-4" />
-                                        Editar
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleDelete(card.id)} className="text-destructive">
-                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        Excluir
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            ))}
-                        </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+            <main className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+               {creditCards.map((card) => {
+                  const invoiceTotal = getInvoiceForCard(card, transactions, thirdPartyExpenses);
+                  const isPaid = paidInvoices[card.id];
+                  
+                  return (
+                    <Card key={card.id} className="flex flex-col">
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle>{card.name}</CardTitle>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Abrir menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditDialog(card)}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDelete(card.id)} className="text-destructive">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          <CardDescription>
+                            Fecha dia {card.closingDate} • Vence dia {card.dueDate}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow">
+                            <div className="text-sm text-muted-foreground">Valor da Fatura</div>
+                             <p className={`text-2xl font-bold ${isPaid ? 'text-primary' : 'text-destructive'}`}>
+                                {invoiceTotal.toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                                })}
+                            </p>
+                        </CardContent>
+                        <div className="p-6 pt-0">
+                            <Button className="w-full" onClick={() => handleMarkAsPaid(card.id)} disabled={isPaid}>
+                                {isPaid ? <CheckCircle className="mr-2 h-4 w-4" /> : null}
+                                {isPaid ? 'Fatura Paga' : 'Marcar como Paga'}
+                            </Button>
+                        </div>
+                    </Card>
+                  )
+               })}
             </main>
         </div>
       </SidebarInset>
