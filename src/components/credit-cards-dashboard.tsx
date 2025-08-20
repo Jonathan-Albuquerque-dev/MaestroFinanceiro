@@ -44,18 +44,21 @@ import type { CreditCard as CreditCardType, Transaction, ThirdPartyExpense } fro
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { getMonth, getYear, set, isAfter, isBefore, subMonths, addMonths, startOfMonth, isEqual, endOfMonth } from "date-fns";
+import { getMonth, getYear, set, isAfter, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
 
 function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], thirdPartyExpenses: ThirdPartyExpense[]): number {
     const now = new Date();
     
-    let closingDateForCurrentInvoice = set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
-
-    if (isAfter(now, closingDateForCurrentInvoice)) {
-        closingDateForCurrentInvoice = addMonths(closingDateForCurrentInvoice, 1);
-    }
+    // Define the current invoice period
+    const today = now.getDate();
     
-    const closingDateForLastInvoice = subMonths(closingDateForCurrentInvoice, 1);
+    let invoiceEndDate: Date;
+    if (today <= card.closingDate) {
+      invoiceEndDate = set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
+    } else {
+      invoiceEndDate = addMonths(set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 }), 1);
+    }
+    const invoiceStartDate = subMonths(invoiceEndDate, 1);
 
     const allExpenses = [
         ...transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credito' && t.creditCardId === card.id),
@@ -70,18 +73,21 @@ function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], th
         const installmentAmount = expense.amount / installments;
         
         for (let i = 0; i < installments; i++) {
-            const installmentDate = addMonths(expenseDate, i);
-
-            let closingDateForInstallment = set(installmentDate, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
-
-            if (i === 0 && isAfter(expenseDate, set(expenseDate, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 }))) {
-                 closingDateForInstallment = addMonths(closingDateForInstallment, 1);
-            }
+            const currentInstallmentDate = addMonths(expenseDate, i);
             
-            const closingDateForInstallmentLastMonth = subMonths(closingDateForInstallment, 1);
+            // Determine which invoice this installment belongs to
+            const expenseClosingDateThisMonth = set(currentInstallmentDate, { date: card.closingDate });
 
-            if (getMonth(closingDateForLastInvoice) === getMonth(closingDateForInstallmentLastMonth) && getYear(closingDateForLastInvoice) === getYear(closingDateForInstallmentLastMonth)) {
-                invoiceTotal += installmentAmount;
+            let installmentInvoiceEndDate;
+            if(isAfter(currentInstallmentDate, expenseClosingDateThisMonth)){
+                installmentInvoiceEndDate = addMonths(expenseClosingDateThisMonth, 1);
+            } else {
+                installmentInvoiceEndDate = expenseClosingDateThisMonth;
+            }
+
+            // Check if the installment's invoice period matches the current invoice period
+            if (getYear(installmentInvoiceEndDate) === getYear(invoiceEndDate) && getMonth(installmentInvoiceEndDate) === getMonth(invoiceEndDate)) {
+                 invoiceTotal += installmentAmount;
             }
         }
     });
