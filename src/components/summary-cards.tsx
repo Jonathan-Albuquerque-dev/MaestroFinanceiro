@@ -8,9 +8,10 @@ type SummaryCardsProps = {
     totalExpense: number;
     balance: number;
     totalThirdPartyExpenses: number;
+    totalMemberExpenses: number;
 }
 
-export function SummaryCards({ totalIncome, totalExpense, balance, totalThirdPartyExpenses }: SummaryCardsProps) {
+export function SummaryCards({ totalIncome, totalExpense, balance, totalThirdPartyExpenses, totalMemberExpenses }: SummaryCardsProps) {
   const formatCurrency = (value: number) => {
     return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
@@ -49,12 +50,12 @@ export function SummaryCards({ totalIncome, totalExpense, balance, totalThirdPar
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Saldo Atual</CardTitle>
-          <Scale className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className="text-sm font-medium">Despesas de Membros</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(balance)}</div>
-          <p className="text-xs text-muted-foreground">Receitas - Despesas</p>
+          <div className="text-2xl font-bold">{formatCurrency(totalMemberExpenses)}</div>
+          <p className="text-xs text-muted-foreground">gastos dos membros</p>
         </CardContent>
       </Card>
     </div>

@@ -29,7 +29,7 @@ import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
 
-import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType } from "@/lib/types";
+import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType, MemberExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,6 +39,7 @@ export function Dashboard() {
   const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>([]);
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
+  const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -107,6 +108,19 @@ export function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, "memberExpenses"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const expensesData: MemberExpense[] = [];
+      querySnapshot.forEach((doc) => {
+        expensesData.push({ id: doc.id, ...doc.data() } as MemberExpense);
+      });
+      setMemberExpenses(expensesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleAddTransaction = async (transaction: Omit<Transaction, "id">) => {
     try {
       await addDoc(collection(db, "transactions"), transaction);
@@ -141,6 +155,8 @@ export function Dashboard() {
   const totalExpense = totalVariableExpense + totalFixedExpense;
 
   const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, e) => sum + e.amount, 0);
+  
+  const totalMemberExpenses = memberExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const balance = totalIncome - totalExpense;
 
@@ -227,7 +243,7 @@ export function Dashboard() {
             </header>
 
             <main>
-                <SummaryCards totalIncome={totalIncome} totalExpense={totalExpense} balance={balance} totalThirdPartyExpenses={totalThirdPartyExpenses} />
+                <SummaryCards totalIncome={totalIncome} totalExpense={totalExpense} balance={balance} totalThirdPartyExpenses={totalThirdPartyExpenses} totalMemberExpenses={totalMemberExpenses}/>
                 <div className="grid gap-8 mt-8 md:grid-cols-2 lg:grid-cols-7">
                     <div className="lg:col-span-4">
                         <FlowChart transactions={transactions} />
