@@ -29,7 +29,7 @@ import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
 
-import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense } from "@/lib/types";
+import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense, CreditCard as CreditCardType } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,6 +38,7 @@ export function Dashboard() {
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>([]);
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -88,6 +89,19 @@ export function Dashboard() {
         expensesData.push({ id: doc.id, ...doc.data() } as ThirdPartyExpense);
       });
       setThirdPartyExpenses(expensesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+  
+  useEffect(() => {
+    const q = query(collection(db, "creditCards"), orderBy("name"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const cardsData: CreditCardType[] = [];
+      querySnapshot.forEach((doc) => {
+        cardsData.push({ id: doc.id, ...doc.data() } as CreditCardType);
+      });
+      setCreditCards(cardsData);
     });
 
     return () => unsubscribe();
@@ -226,6 +240,7 @@ export function Dashboard() {
         open={isAddDialogOpen}
         onOpenChange={setAddDialogOpen}
         onAddTransaction={handleAddTransaction}
+        creditCards={creditCards}
       />
     </SidebarProvider>
   );

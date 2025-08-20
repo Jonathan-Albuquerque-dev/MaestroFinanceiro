@@ -7,6 +7,9 @@ export type Transaction = {
   amount: number;
   category: string;
   date: string | Timestamp;
+  paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
+  creditCardId?: string;
+  installments?: number;
 };
 
 export type FamilyMemberIncome = {

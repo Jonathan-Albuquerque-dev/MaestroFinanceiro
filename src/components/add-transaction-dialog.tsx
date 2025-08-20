@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarIcon } from "lucide-react";
@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { categories } from "@/lib/mock-data";
-import type { Transaction } from "@/lib/types";
+import type { Transaction, CreditCard } from "@/lib/types";
 
 const formSchema = z.object({
   type: z.enum(["income", "expense"], { required_error: "Tipo é obrigatório." }),
@@ -48,18 +48,40 @@ const formSchema = z.object({
   amount: z.coerce.number().positive("O valor deve ser positivo."),
   category: z.string().min(1, "Categoria é obrigatória."),
   date: z.date({ required_error: "Data é obrigatória." }),
+  paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]).optional(),
+  creditCardId: z.string().optional(),
+  installments: z.coerce.number().int().min(1).optional(),
+}).refine(data => {
+    if (data.type === 'expense' && !data.paymentMethod) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Meio de pagamento é obrigatório para despesas.",
+    path: ["paymentMethod"],
+}).refine(data => {
+    if (data.paymentMethod === 'credito' && !data.creditCardId) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Cartão de crédito é obrigatório para essa forma de pagamento.",
+    path: ["creditCardId"],
 });
+
 
 type AddTransactionDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+  creditCards: CreditCard[];
 };
 
 export function AddTransactionDialog({
   open,
   onOpenChange,
   onAddTransaction,
+  creditCards,
 }: AddTransactionDialogProps) {
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -69,13 +91,33 @@ export function AddTransactionDialog({
       description: "",
       amount: 0,
       date: new Date(),
+      installments: 1,
     },
+  });
+
+  const transactionType = useWatch({
+    control: form.control,
+    name: "type",
+  });
+
+  const paymentMethod = useWatch({
+      control: form.control,
+      name: "paymentMethod"
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     onAddTransaction({ ...values, date: values.date.toISOString() });
     onOpenChange(false);
-    form.reset();
+    form.reset({
+        type: "expense",
+        description: "",
+        amount: 0,
+        date: new Date(),
+        installments: 1,
+        category: "",
+        paymentMethod: undefined,
+        creditCardId: undefined,
+    });
   }
 
   return (
@@ -93,7 +135,12 @@ export function AddTransactionDialog({
                 <FormItem>
                   <FormLabel>Tipo</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                        field.onChange(value);
+                        form.setValue("paymentMethod", undefined);
+                        form.setValue("creditCardId", undefined);
+                        form.setValue("installments", 1);
+                    }}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -160,6 +207,74 @@ export function AddTransactionDialog({
                 </FormItem>
               )}
             />
+             {transactionType === 'expense' && (
+                <>
+                    <FormField
+                    control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Meio de Pagamento</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecione o meio de pagamento" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                <SelectItem value="pix">Pix</SelectItem>
+                                <SelectItem value="debito">Débito</SelectItem>
+                                <SelectItem value="credito">Crédito</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    {paymentMethod === 'credito' && (
+                        <>
+                            <FormField
+                                control={form.control}
+                                name="creditCardId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Cartão de Crédito</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecione o cartão" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {creditCards.map((card) => (
+                                            <SelectItem key={card.id} value={card.id}>
+                                            {card.name}
+                                            </SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="installments"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Parcelas</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="1" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </>
+                    )}
+                </>
+            )}
             <FormField
               control={form.control}
               name="date"
