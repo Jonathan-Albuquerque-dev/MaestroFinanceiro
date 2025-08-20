@@ -56,7 +56,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { format, getYear, getMonth, getDate, addMonths } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
@@ -80,34 +80,29 @@ function formatDate(date: string | Timestamp) {
     return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
 }
 
-function getCurrentInstallmentText(expense: MemberExpense, creditCard?: CreditCardType): string {
+function getCurrentInstallmentText(expense: MemberExpense): string {
     if (!expense.installments || expense.installments <= 1) {
         return 'N/A';
     }
 
-    const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
-    let effectiveExpenseDate = expenseDate;
+    const purchaseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
+    const currentDate = new Date();
+    const totalInstallments = expense.installments;
 
-    // If it's a credit card expense and the purchase date is after the closing date, the first installment is on the next invoice.
-    if (expense.paymentMethod === 'credito' && creditCard && getDate(expenseDate) > creditCard.closingDate) {
-        effectiveExpenseDate = addMonths(expenseDate, 1);
-    }
+    const yearDiff = currentDate.getFullYear() - purchaseDate.getFullYear();
+    const monthDiff = currentDate.getMonth() - purchaseDate.getMonth();
+
+    let diffInMonths = yearDiff * 12 + monthDiff;
+
+    const currentInstallment = diffInMonths + 1;
+
+    const installment = Math.min(currentInstallment, totalInstallments);
     
-    const now = new Date();
-    
-    const monthsDiff = (getYear(now) - getYear(effectiveExpenseDate)) * 12 + (getMonth(now) - getMonth(effectiveExpenseDate));
-
-    if (monthsDiff < 0) {
-       return `1/${expense.installments}`;
+    if (installment < 1) {
+      return `1/${totalInstallments}`;
     }
 
-    const currentInstallment = monthsDiff + 1;
-
-    if (currentInstallment > expense.installments) {
-        return `${expense.installments}/${expense.installments}`;
-    }
-
-    return `${currentInstallment}/${expense.installments}`;
+    return `${installment}/${totalInstallments}`;
 }
 
 export function MemberExpensesDashboard() {
@@ -213,10 +208,6 @@ export function MemberExpensesDashboard() {
 
   const getMemberName = (memberId: string) => {
       return familyMembers.find(m => m.id === memberId)?.name || 'Desconhecido';
-  }
-
-  const getCreditCardById = (cardId: string) => {
-      return creditCards.find(c => c.id === cardId);
   }
 
   return (
@@ -352,7 +343,7 @@ export function MemberExpensesDashboard() {
                                   )}
                                 </TableCell>
                                  <TableCell>
-                                    {getCurrentInstallmentText(expense, expense.creditCardId ? getCreditCardById(expense.creditCardId) : undefined)}
+                                    {getCurrentInstallmentText(expense)}
                                  </TableCell>
                                 <TableCell className="text-right font-medium text-destructive">
                                     {expense.amount.toLocaleString("pt-BR", {
