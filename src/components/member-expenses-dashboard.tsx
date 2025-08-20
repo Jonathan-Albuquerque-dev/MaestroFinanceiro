@@ -56,7 +56,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { format, getYear, getMonth } from 'date-fns';
+import { format, getYear, getMonth, getDate, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
@@ -80,15 +80,22 @@ function formatDate(date: string | Timestamp) {
     return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
 }
 
-function getCurrentInstallmentText(expense: MemberExpense): string {
+function getCurrentInstallmentText(expense: MemberExpense, creditCard?: CreditCardType): string {
     if (!expense.installments || expense.installments <= 1) {
         return 'N/A';
     }
 
     const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
+    let effectiveExpenseDate = expenseDate;
+
+    // If it's a credit card expense and the purchase date is after the closing date, the first installment is on the next invoice.
+    if (expense.paymentMethod === 'credito' && creditCard && getDate(expenseDate) > creditCard.closingDate) {
+        effectiveExpenseDate = addMonths(expenseDate, 1);
+    }
+    
     const now = new Date();
     
-    const monthsDiff = (getYear(now) - getYear(expenseDate)) * 12 + (getMonth(now) - getMonth(expenseDate));
+    const monthsDiff = (getYear(now) - getYear(effectiveExpenseDate)) * 12 + (getMonth(now) - getMonth(effectiveExpenseDate));
 
     if (monthsDiff < 0) {
        return `1/${expense.installments}`;
@@ -206,6 +213,10 @@ export function MemberExpensesDashboard() {
 
   const getMemberName = (memberId: string) => {
       return familyMembers.find(m => m.id === memberId)?.name || 'Desconhecido';
+  }
+
+  const getCreditCardById = (cardId: string) => {
+      return creditCards.find(c => c.id === cardId);
   }
 
   return (
@@ -341,7 +352,7 @@ export function MemberExpensesDashboard() {
                                   )}
                                 </TableCell>
                                  <TableCell>
-                                    {getCurrentInstallmentText(expense)}
+                                    {getCurrentInstallmentText(expense, expense.creditCardId ? getCreditCardById(expense.creditCardId) : undefined)}
                                  </TableCell>
                                 <TableCell className="text-right font-medium text-destructive">
                                     {expense.amount.toLocaleString("pt-BR", {
@@ -389,5 +400,3 @@ export function MemberExpensesDashboard() {
     </SidebarProvider>
   );
 }
-
-    
