@@ -86,7 +86,7 @@ function getCurrentInstallmentText(
   closingDayInput: number | string
 ) {
   // trabalhar sempre com UTC para não “voltar” um dia no fuso -03
-  const closingDay = Number(closingDayInput);
+  const closingDay = Number(closingDayInput) - 1;
 
   const pY = purchaseDate.getUTCFullYear();
   const pM = purchaseDate.getUTCMonth();     // 0..11
