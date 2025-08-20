@@ -117,6 +117,14 @@ export function IncomesDashboard() {
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/third-party-expenses" passHref>
+                <SidebarMenuButton>
+                  <Users />
+                  <span>Despesas de Terceiros</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>

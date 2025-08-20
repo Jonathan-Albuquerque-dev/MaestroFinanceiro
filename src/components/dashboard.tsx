@@ -28,7 +28,7 @@ import { Button } from "./ui/button";
 import NextLink from "next/link";
 import { db } from "@/lib/firebase";
 
-import type { Transaction, FixedExpense, FamilyMemberIncome } from "@/lib/types";
+import type { Transaction, FixedExpense, FamilyMemberIncome, ThirdPartyExpense } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,6 +36,7 @@ export function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
   const [familyIncomes, setFamilyIncomes] = useState<FamilyMemberIncome[]>([]);
+  const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -78,6 +79,19 @@ export function Dashboard() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const q = query(collection(db, "thirdPartyExpenses"), orderBy("name"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const expensesData: ThirdPartyExpense[] = [];
+      querySnapshot.forEach((doc) => {
+        expensesData.push({ id: doc.id, ...doc.data() } as ThirdPartyExpense);
+      });
+      setThirdPartyExpenses(expensesData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const handleAddTransaction = async (transaction: Omit<Transaction, "id">) => {
     try {
       await addDoc(collection(db, "transactions"), transaction);
@@ -110,6 +124,8 @@ export function Dashboard() {
   const totalFixedExpense = fixedExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const totalExpense = totalVariableExpense + totalFixedExpense;
+
+  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const balance = totalIncome - totalExpense;
 
@@ -150,6 +166,14 @@ export function Dashboard() {
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/third-party-expenses" passHref>
+                <SidebarMenuButton>
+                  <Users />
+                  <span>Despesas de Terceiros</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -172,7 +196,7 @@ export function Dashboard() {
             </header>
 
             <main>
-                <SummaryCards totalIncome={totalIncome} totalExpense={totalExpense} balance={balance} />
+                <SummaryCards totalIncome={totalIncome} totalExpense={totalExpense} balance={balance} totalThirdPartyExpenses={totalThirdPartyExpenses} />
                 <div className="grid gap-8 mt-8 md:grid-cols-2 lg:grid-cols-7">
                     <div className="lg:col-span-4">
                         <FlowChart transactions={transactions} />

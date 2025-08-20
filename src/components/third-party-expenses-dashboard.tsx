@@ -45,49 +45,49 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AddEditFixedExpenseDialog } from "./add-edit-fixed-expense-dialog";
-import type { FixedExpense } from "@/lib/types";
+import { AddEditThirdPartyExpenseDialog } from "./add-edit-third-party-expense-dialog";
+import type { ThirdPartyExpense } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
-export function FixedExpensesDashboard() {
-  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+export function ThirdPartyExpensesDashboard() {
+  const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState<FixedExpense | undefined>(undefined);
+  const [selectedExpense, setSelectedExpense] = useState<ThirdPartyExpense | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
-    const q = query(collection(db, "fixedExpenses"), orderBy("description"));
+    const q = query(collection(db, "thirdPartyExpenses"), orderBy("name"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const expensesData: FixedExpense[] = [];
+      const expensesData: ThirdPartyExpense[] = [];
       querySnapshot.forEach((doc) => {
-        expensesData.push({ id: doc.id, ...doc.data() } as FixedExpense);
+        expensesData.push({ id: doc.id, ...doc.data() } as ThirdPartyExpense);
       });
-      setFixedExpenses(expensesData);
+      setThirdPartyExpenses(expensesData);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handleAddOrUpdate = async (expense: Omit<FixedExpense, "id"> | FixedExpense) => {
+  const handleAddOrUpdate = async (expense: Omit<ThirdPartyExpense, "id"> | ThirdPartyExpense) => {
     try {
       if ("id" in expense) {
-        const docRef = doc(db, "fixedExpenses", expense.id);
+        const docRef = doc(db, "thirdPartyExpenses", expense.id);
         await updateDoc(docRef, { ...expense });
         toast({
           title: "Sucesso!",
-          description: "Despesa atualizada com sucesso.",
+          description: "Despesa de terceiro atualizada com sucesso.",
         });
       } else {
-        await addDoc(collection(db, "fixedExpenses"), expense);
+        await addDoc(collection(db, "thirdPartyExpenses"), expense);
         toast({
           title: "Sucesso!",
-          description: "Despesa adicionada com sucesso.",
+          description: "Despesa de terceiro adicionada com sucesso.",
         });
       }
     } catch (error) {
-       console.error("Erro ao salvar despesa: ", error);
+       console.error("Erro ao salvar despesa de terceiro: ", error);
        toast({
         variant: "destructive",
         title: "Erro!",
@@ -98,13 +98,13 @@ export function FixedExpensesDashboard() {
 
   const handleDelete = async (expenseId: string) => {
     try {
-      await deleteDoc(doc(db, "fixedExpenses", expenseId));
+      await deleteDoc(doc(db, "thirdPartyExpenses", expenseId));
       toast({
         title: "Sucesso!",
-        description: "Despesa excluída com sucesso.",
+        description: "Despesa de terceiro excluída com sucesso.",
       });
     } catch (error) {
-      console.error("Erro ao excluir despesa: ", error);
+      console.error("Erro ao excluir despesa de terceiro: ", error);
       toast({
         variant: "destructive",
         title: "Erro!",
@@ -118,12 +118,12 @@ export function FixedExpensesDashboard() {
     setDialogOpen(true);
   }
 
-  const openEditDialog = (expense: FixedExpense) => {
+  const openEditDialog = (expense: ThirdPartyExpense) => {
     setSelectedExpense(expense);
     setDialogOpen(true);
   }
   
-  const totalFixedExpenses = fixedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalThirdPartyExpenses = thirdPartyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
     <SidebarProvider>
@@ -156,15 +156,15 @@ export function FixedExpensesDashboard() {
             </SidebarMenuItem>
              <SidebarMenuItem>
               <NextLink href="/fixed-expenses" passHref>
-                <SidebarMenuButton isActive>
+                <SidebarMenuButton>
                   <Repeat />
                   <span>Despesas Fixas</span>
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
-            <SidebarMenuItem>
+             <SidebarMenuItem>
               <NextLink href="/third-party-expenses" passHref>
-                <SidebarMenuButton>
+                <SidebarMenuButton isActive>
                   <Users />
                   <span>Despesas de Terceiros</span>
                 </SidebarMenuButton>
@@ -177,8 +177,8 @@ export function FixedExpensesDashboard() {
         <div className="flex-1 p-4 md:p-8 space-y-8">
             <header className="flex items-center justify-between space-y-2">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight font-headline">Despesas Fixas</h2>
-                    <p className="text-muted-foreground">Gerencie suas despesas recorrentes.</p>
+                    <h2 className="text-3xl font-bold tracking-tight font-headline">Despesas de Terceiros</h2>
+                    <p className="text-muted-foreground">Gerencie os gastos de outras pessoas em seu cartão.</p>
                 </div>
                 <div className="flex items-center space-x-4">
                   <Button onClick={openAddDialog}>
@@ -194,12 +194,12 @@ export function FixedExpensesDashboard() {
             <main className="space-y-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Total de Despesas Fixas</CardTitle>
-                        <CardDescription>A soma de todas as suas despesas fixas mensais.</CardDescription>
+                        <CardTitle>Total a Receber</CardTitle>
+                        <CardDescription>A soma de todos os gastos de terceiros a serem reembolsados.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-3xl font-bold text-destructive">
-                           {totalFixedExpenses.toLocaleString("pt-BR", {
+                        <p className="text-3xl font-bold text-accent">
+                           {totalThirdPartyExpenses.toLocaleString("pt-BR", {
                               style: "currency",
                               currency: "BRL",
                             })}
@@ -209,24 +209,24 @@ export function FixedExpensesDashboard() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Lista de Despesas</CardTitle>
-                        <CardDescription>Suas despesas fixas cadastradas.</CardDescription>
+                        <CardDescription>Despesas de terceiros cadastradas.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                         <TableHeader>
                             <TableRow>
+                            <TableHead>Nome</TableHead>
                             <TableHead>Descrição</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead className="text-right">Valor Mensal</TableHead>
+                            <TableHead className="text-right">Valor</TableHead>
                             <TableHead className="w-[50px]"></TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {fixedExpenses.map((expense) => (
+                            {thirdPartyExpenses.map((expense) => (
                             <TableRow key={expense.id}>
-                                <TableCell className="font-medium">{expense.description}</TableCell>
-                                <TableCell>{expense.category}</TableCell>
-                                <TableCell className="text-right font-medium text-destructive">
+                                <TableCell className="font-medium">{expense.name}</TableCell>
+                                <TableCell>{expense.description}</TableCell>
+                                <TableCell className="text-right font-medium text-accent">
                                     {expense.amount.toLocaleString("pt-BR", {
                                         style: "currency",
                                         currency: "BRL",
@@ -261,7 +261,7 @@ export function FixedExpensesDashboard() {
             </main>
         </div>
       </SidebarInset>
-      <AddEditFixedExpenseDialog
+      <AddEditThirdPartyExpenseDialog
         open={isDialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleAddOrUpdate}

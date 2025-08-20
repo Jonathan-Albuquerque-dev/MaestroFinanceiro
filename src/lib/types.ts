@@ -22,6 +22,13 @@ export type FixedExpense = {
   category: string;
 };
 
+export type ThirdPartyExpense = {
+  id: string;
+  name: string;
+  description: string;
+  amount: number;
+};
+
 export type Category = 'Alimentação' | 'Transporte' | 'Moradia' | 'Saúde' | 'Educação' | 'Lazer' | 'Salário' | 'Renda Extra' | 'Outros';
 
 export type ChartData = {
