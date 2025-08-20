@@ -66,7 +66,7 @@ const formSchema = z.object({
 type AddEditMemberExpenseDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (expense: Omit<MemberExpense, "id"> | MemberExpense) => void;
+  onSave: (expense: Omit<MemberExpense, "id" | "paidInstallments"> | MemberExpense) => void;
   expense?: MemberExpense;
   creditCards: CreditCard[];
   familyMembers: FamilyMemberIncome[];
@@ -123,7 +123,7 @@ export function AddEditMemberExpenseDialog({
     if (expense) {
       onSave({ ...expense, ...dataToSave });
     } else {
-      onSave(dataToSave);
+      onSave({...dataToSave, paidInstallments: []});
     }
     onOpenChange(false);
     form.reset();

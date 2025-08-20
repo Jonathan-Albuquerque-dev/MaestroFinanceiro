@@ -40,13 +40,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddEditCreditCardDialog } from "./add-edit-credit-card-dialog";
-import type { CreditCard as CreditCardType, Transaction, ThirdPartyExpense } from "@/lib/types";
-import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import type { CreditCard as CreditCardType, Transaction, ThirdPartyExpense, MemberExpense } from "@/lib/types";
+import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { getMonth, getYear, set, isAfter, subMonths, addMonths, startOfMonth, endOfMonth } from "date-fns";
+import { getMonth, getYear, set, isAfter, subMonths, addMonths } from "date-fns";
 
-function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], thirdPartyExpenses: ThirdPartyExpense[]): number {
+type GenericExpense = (Transaction | ThirdPartyExpense | MemberExpense) & { type?: 'transaction' | 'thirdParty' | 'member' };
+
+function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], thirdPartyExpenses: ThirdPartyExpense[], memberExpenses: MemberExpense[]): number {
     const now = new Date();
     
     // Define the current invoice period
@@ -58,11 +60,11 @@ function getInvoiceForCard(card: CreditCardType, transactions: Transaction[], th
     } else {
       invoiceEndDate = addMonths(set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 }), 1);
     }
-    const invoiceStartDate = subMonths(invoiceEndDate, 1);
 
-    const allExpenses = [
-        ...transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credito' && t.creditCardId === card.id),
-        ...thirdPartyExpenses.filter(t => t.paymentMethod === 'credito' && t.creditCardId === card.id)
+    const allExpenses: GenericExpense[] = [
+        ...transactions.filter(t => t.type === 'expense' && t.paymentMethod === 'credito' && t.creditCardId === card.id).map(t => ({...t, type: 'transaction'})),
+        ...thirdPartyExpenses.filter(t => t.paymentMethod === 'credito' && t.creditCardId === card.id).map(t => ({...t, type: 'thirdParty'})),
+        ...memberExpenses.filter(t => t.paymentMethod === 'credito' && t.creditCardId === card.id).map(t => ({...t, type: 'member'}))
     ];
 
     let invoiceTotal = 0;
@@ -99,6 +101,7 @@ export function CreditCardsDashboard() {
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [thirdPartyExpenses, setThirdPartyExpenses] = useState<ThirdPartyExpense[]>([]);
+  const [memberExpenses, setMemberExpenses] = useState<MemberExpense[]>([]);
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [selectedCard, setSelectedCard] = useState<CreditCardType | undefined>(undefined);
   const [paidInvoices, setPaidInvoices] = useState<Record<string, boolean>>({});
@@ -123,10 +126,17 @@ export function CreditCardsDashboard() {
         setThirdPartyExpenses(expensesData);
     });
 
+     const qMemberExpenses = query(collection(db, "memberExpenses"), orderBy("date", "desc"));
+    const unsubMemberExpenses = onSnapshot(qMemberExpenses, (snapshot) => {
+        const expensesData: MemberExpense[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MemberExpense));
+        setMemberExpenses(expensesData);
+    });
+
     return () => {
         unsubCards();
         unsubTransactions();
         unsubThirdParty();
+        unsubMemberExpenses();
     };
   }, []);
 
@@ -173,13 +183,70 @@ export function CreditCardsDashboard() {
     }
   }
 
-  const handleMarkAsPaid = (cardId: string) => {
-    setPaidInvoices(prev => ({ ...prev, [cardId]: true }));
-     toast({
-        title: "Fatura Paga!",
-        description: "A fatura deste cartão foi marcada como paga.",
-      });
-  }
+  const handleMarkAsPaid = async (card: CreditCardType) => {
+    try {
+        const now = new Date();
+        const today = now.getDate();
+        let invoiceEndDate: Date;
+        if (today <= card.closingDate) {
+            invoiceEndDate = set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 });
+        } else {
+            invoiceEndDate = addMonths(set(now, { date: card.closingDate, hours: 23, minutes: 59, seconds: 59, milliseconds: 999 }), 1);
+        }
+
+        const expensesToUpdate: { expense: MemberExpense, installmentNumber: number }[] = [];
+
+        memberExpenses
+            .filter(expense => expense.paymentMethod === 'credito' && expense.creditCardId === card.id)
+            .forEach(expense => {
+                const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
+                const installments = expense.installments || 1;
+
+                for (let i = 0; i < installments; i++) {
+                    const installmentNumber = i + 1;
+                    const currentInstallmentDate = addMonths(expenseDate, i);
+                    const expenseClosingDateThisMonth = set(currentInstallmentDate, { date: card.closingDate });
+
+                    let installmentInvoiceEndDate;
+                    if (isAfter(currentInstallmentDate, expenseClosingDateThisMonth)) {
+                        installmentInvoiceEndDate = addMonths(expenseClosingDateThisMonth, 1);
+                    } else {
+                        installmentInvoiceEndDate = expenseClosingDateThisMonth;
+                    }
+
+                    if (getYear(installmentInvoiceEndDate) === getYear(invoiceEndDate) && getMonth(installmentInvoiceEndDate) === getMonth(invoiceEndDate)) {
+                        if (!expense.paidInstallments?.includes(installmentNumber)) {
+                            expensesToUpdate.push({ expense, installmentNumber });
+                        }
+                    }
+                }
+            });
+
+        if (expensesToUpdate.length > 0) {
+            const batch = writeBatch(db);
+            expensesToUpdate.forEach(({ expense, installmentNumber }) => {
+                const docRef = doc(db, "memberExpenses", expense.id);
+                const newPaidInstallments = [...(expense.paidInstallments || []), installmentNumber];
+                batch.update(docRef, { paidInstallments: newPaidInstallments });
+            });
+            await batch.commit();
+        }
+
+        setPaidInvoices(prev => ({ ...prev, [card.id]: true }));
+        toast({
+            title: "Fatura Paga!",
+            description: "A fatura deste cartão foi marcada como paga e as parcelas das despesas dos membros foram atualizadas.",
+        });
+
+    } catch (error) {
+        console.error("Erro ao marcar fatura como paga: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro!",
+            description: "Não foi possível processar o pagamento da fatura.",
+        });
+    }
+}
 
   const openAddDialog = () => {
     setSelectedCard(undefined);
@@ -275,7 +342,7 @@ export function CreditCardsDashboard() {
 
             <main className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                {creditCards.map((card) => {
-                  const invoiceTotal = getInvoiceForCard(card, transactions, thirdPartyExpenses);
+                  const invoiceTotal = getInvoiceForCard(card, transactions, thirdPartyExpenses, memberExpenses);
                   const isPaid = paidInvoices[card.id];
                   
                   return (
@@ -316,7 +383,7 @@ export function CreditCardsDashboard() {
                             </p>
                         </CardContent>
                         <div className="p-6 pt-0">
-                            <Button className="w-full" onClick={() => handleMarkAsPaid(card.id)} disabled={isPaid}>
+                            <Button className="w-full" onClick={() => handleMarkAsPaid(card)} disabled={isPaid}>
                                 {isPaid ? <CheckCircle className="mr-2 h-4 w-4" /> : null}
                                 {isPaid ? 'Fatura Paga' : 'Marcar como Paga'}
                             </Button>

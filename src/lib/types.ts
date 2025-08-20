@@ -47,6 +47,7 @@ export type MemberExpense = {
   paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
   creditCardId?: string;
   installments?: number;
+  paidInstallments?: number[];
 }
 
 export type CreditCard = {

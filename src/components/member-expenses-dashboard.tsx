@@ -55,7 +55,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { db } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
-import { format, isSameMonth, isSameYear } from 'date-fns';
+import { format, differenceInMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const paymentMethodIcons = {
@@ -77,6 +77,36 @@ function formatDate(date: string | Timestamp) {
         return format(new Date(date), "dd/MM/yyyy", { locale: ptBR })
     }
     return format(date.toDate(), "dd/MM/yyyy", { locale: ptBR });
+}
+
+function getCurrentInstallmentText(expense: MemberExpense): string {
+    if (!expense.installments || expense.installments <= 1) {
+        return 'N/A';
+    }
+
+    const expenseDate = expense.date instanceof Timestamp ? expense.date.toDate() : new Date(expense.date);
+    const now = new Date();
+    
+    // Set both dates to the start of the day for a clean month calculation
+    expenseDate.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+
+    let monthsDiff = differenceInMonths(now, expenseDate);
+
+    // If the purchase date is in the future, diff will be negative
+    if (monthsDiff < 0) monthsDiff = -1;
+
+    const currentInstallment = monthsDiff + 1;
+
+    if (currentInstallment > expense.installments) {
+        return `${expense.installments}/${expense.installments}`;
+    }
+
+    if (currentInstallment <= 0) {
+        return `1/${expense.installments}`;
+    }
+
+    return `${currentInstallment}/${expense.installments}`;
 }
 
 export function MemberExpensesDashboard() {
@@ -316,8 +346,8 @@ export function MemberExpensesDashboard() {
                                     </Badge>
                                   )}
                                 </TableCell>
-                                <TableCell>
-                                    {expense.installments && expense.installments > 1 ? `1/${expense.installments}` : 'N/A'}
+                                 <TableCell>
+                                    {getCurrentInstallmentText(expense)}
                                 </TableCell>
                                 <TableCell className="text-right font-medium text-destructive">
                                     {expense.amount.toLocaleString("pt-BR", {
