@@ -220,6 +220,14 @@ export function CreditCardsDashboard() {
                 </SidebarMenuButton>
               </NextLink>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <NextLink href="/member-expenses" passHref>
+                <SidebarMenuButton>
+                  <Users />
+                  <span>Despesas dos Membros</span>
+                </SidebarMenuButton>
+              </NextLink>
+            </SidebarMenuItem>
              <SidebarMenuItem>
               <NextLink href="/fixed-expenses" passHref>
                 <SidebarMenuButton>

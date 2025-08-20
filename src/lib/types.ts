@@ -37,6 +37,18 @@ export type ThirdPartyExpense = {
   paidInstallments?: number[];
 };
 
+export type MemberExpense = {
+  id: string;
+  memberId: string;
+  description: string;
+  amount: number;
+  date: string | Timestamp;
+  category: string;
+  paymentMethod?: 'dinheiro' | 'pix' | 'debito' | 'credito';
+  creditCardId?: string;
+  installments?: number;
+}
+
 export type CreditCard = {
   id: string;
   name: string;
