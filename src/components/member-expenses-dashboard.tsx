@@ -94,7 +94,7 @@ function getCurrentInstallmentText(expense: MemberExpense): string {
        return `1/${expense.installments}`;
     }
 
-    const currentInstallment = monthsDiff + 1;
+    const currentInstallment = monthsDiff;
 
     if (currentInstallment > expense.installments) {
         return `${expense.installments}/${expense.installments}`;
