@@ -51,6 +51,7 @@ const formSchema = z.object({
   category: z.string().min(1, "A categoria é obrigatória."),
   paymentMethod: z.enum(["dinheiro", "pix", "debito", "credito"]),
   creditCardId: z.string().optional(),
+  installments: z.coerce.number().int().min(1, "Deve ser no mínimo 1 parcela").optional(),
 }).refine(data => {
     if (data.paymentMethod === 'credito' && !data.creditCardId) {
         return false;
@@ -110,17 +111,32 @@ export function AddEditMemberExpenseDialog({
         category: "",
         paymentMethod: "dinheiro",
         creditCardId: undefined,
+        installments: undefined,
       });
     }
   }, [open, expense, form]);
   
+  useEffect(() => {
+    if (paymentMethod !== 'credito') {
+      form.setValue('installments', undefined);
+    }
+  }, [paymentMethod, form]);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    const dataToSave = { ...values, date: values.date.toISOString() };
+    const dataToSave: Omit<MemberExpense, "id"> & { date: string } = {
+       ...values,
+       date: values.date.toISOString(),
+       installments: values.installments ? Number(values.installments) : undefined,
+    };
+
+    if (!values.installments) {
+      delete (dataToSave as Partial<typeof dataToSave>).installments;
+    }
+    
     if (expense) {
-      onSave({ ...expense, ...dataToSave });
+      onSave({ ...expense, ...dataToSave, paidInstallments: expense.paidInstallments || [] });
     } else {
-      onSave(dataToSave);
+      onSave({...dataToSave, paidInstallments: []});
     }
     onOpenChange(false);
     form.reset();
@@ -295,6 +311,19 @@ export function AddEditMemberExpenseDialog({
                                 ))}
                                 </SelectContent>
                             </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="installments"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Total de Parcelas</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="Ex: 12" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : Number(e.target.value))}/>
+                            </FormControl>
                             <FormMessage />
                             </FormItem>
                         )}

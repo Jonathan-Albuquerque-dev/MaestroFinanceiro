@@ -50,6 +50,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AddEditMemberExpenseDialog } from "./add-edit-member-expense-dialog";
+import { InstallmentsDialog } from "./installments-dialog";
 import type { MemberExpense, CreditCard as CreditCardType, FamilyMemberIncome } from "@/lib/types";
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -85,6 +86,7 @@ export function MemberExpensesDashboard() {
   const [creditCards, setCreditCards] = useState<CreditCardType[]>([]);
   const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<MemberExpense | undefined>(undefined);
+  const [installmentsExpense, setInstallmentsExpense] = useState<MemberExpense | undefined>(undefined);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -165,6 +167,21 @@ export function MemberExpensesDashboard() {
       });
     }
   };
+
+  const handleUpdateInstallments = async (expenseId: string, paidInstallments: number[]) => {
+    try {
+      const docRef = doc(db, "memberExpenses", expenseId);
+      await updateDoc(docRef, { paidInstallments });
+    } catch (error) {
+       console.error("Erro ao atualizar parcelas: ", error);
+       toast({
+        variant: "destructive",
+        title: "Erro!",
+        description: "Não foi possível atualizar o status da parcela.",
+      });
+    }
+  };
+
 
   const openAddDialog = () => {
     setSelectedExpense(undefined);
@@ -300,6 +317,7 @@ export function MemberExpensesDashboard() {
                       <TableHead>Data</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead>Pagamento</TableHead>
+                      <TableHead>Parcelas</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -324,6 +342,15 @@ export function MemberExpensesDashboard() {
                                   expense.creditCardId &&
                                   ` (${creditCards.find((c) => c.id === expense.creditCardId)?.name})`}
                               </Badge>
+                            )}
+                          </TableCell>
+                           <TableCell>
+                            {expense.installments && expense.installments > 1 ? (
+                              <Button variant="link" className="p-0" onClick={() => setInstallmentsExpense(expense)}>
+                                {expense.paidInstallments?.length || 0}/{expense.installments}
+                              </Button>
+                            ) : (
+                              "N/A"
                             )}
                           </TableCell>
                           <TableCell className="text-right font-medium text-destructive">
@@ -373,6 +400,14 @@ export function MemberExpensesDashboard() {
         creditCards={creditCards}
         familyMembers={familyMembers}
       />
+      {installmentsExpense && (
+        <InstallmentsDialog
+          expense={installmentsExpense}
+          open={!!installmentsExpense}
+          onOpenChange={() => setInstallmentsExpense(undefined)}
+          onUpdateInstallments={handleUpdateInstallments}
+        />
+      )}
     </SidebarProvider>
   );
 }
