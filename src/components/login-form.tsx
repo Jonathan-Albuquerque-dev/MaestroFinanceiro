@@ -52,7 +52,6 @@ export function LoginForm() {
       });
       router.push("/");
     } catch (error) {
-      console.error("Erro ao fazer login:", error);
       toast({
         variant: "destructive",
         title: "Erro de autenticação",
